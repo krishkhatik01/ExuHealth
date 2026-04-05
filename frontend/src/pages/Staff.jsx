@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { LuSearch, LuPlus } from 'react-icons/lu';
-import { FiMoreHorizontal } from 'react-icons/fi';
+import { FiMoreHorizontal, FiEdit, FiTrash, FiMoreVertical } from 'react-icons/fi';
 import Modal from '../components/Modal';
 import { useToast } from '../context/ToastContext';
 
 export default function Staff() {
   const [staff, setStaff] = useState([]);
+  const [openMenuId, setOpenMenuId] = useState(null);
   const { showToast } = useToast();
   
   // Modal State
@@ -18,6 +19,21 @@ export default function Staff() {
   useEffect(() => {
      api.getStaff().then(setStaff);
   }, []);
+
+  const handleDelete = async (id) => {
+    if(window.confirm("Are you sure you want to delete this record?")) {
+      try {
+        setOpenMenuId(null);
+        await api.deleteStaff(id);
+        setStaff(prev => prev.filter(s => s.id !== id));
+        showToast('Deleted staff successfully', 'success');
+      } catch (err) {
+        console.error("Delete failed:", err);
+        showToast('Delete failed', 'error');
+        api.getStaff().then(setStaff); // fallback sync
+      }
+    }
+  };
 
   const handleSave = async () => {
     // Validation
@@ -123,10 +139,30 @@ export default function Staff() {
                   <td className="py-3 px-6 text-right font-mono text-slate-300">
                     ₹{s.salary.toLocaleString('en-IN', {minimumFractionDigits: 2})}
                   </td>
-                  <td className="py-3 px-6 text-right">
-                    <button className="p-1.5 text-slate-400 hover:text-white transition-colors">
+                  <td className="py-3 px-6 text-right relative">
+                    <button 
+                      onClick={() => setOpenMenuId(openMenuId === s.id ? null : s.id)}
+                      className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-colors"
+                    >
                       <FiMoreHorizontal className="w-5 h-5" />
                     </button>
+
+                    {openMenuId === s.id && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)}></div>
+                        <div className="absolute right-10 top-2 w-32 bg-navy-900 border border-slate-700 rounded-lg shadow-xl z-50 py-1 overflow-hidden">
+                          <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 transition-colors">
+                            <FiEdit className="w-4 h-4" /> Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(s.id)}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-brand-danger hover:bg-slate-800 transition-colors"
+                          >
+                            <FiTrash className="w-4 h-4" /> Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -207,7 +243,7 @@ export default function Staff() {
           </div>
 
           <div>
-            <label className="block text-slate-400 mb-1">Annual Salary ($) *</label>
+            <label className="block text-slate-400 mb-1">Annual Salary (₹) *</label>
             <input 
               type="text" 
               value={formData.salary}

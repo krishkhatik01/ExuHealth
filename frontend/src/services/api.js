@@ -40,6 +40,26 @@ export const api = {
     }
     return fetchApi('/patients/', { method: 'POST', body: JSON.stringify(data) });
   },
+
+  updatePatient: async (id, data) => {
+    if (USE_MOCK) {
+       await delay();
+       const ix = mockDb.patients.findIndex(p => p.id === id);
+       if (ix !== -1) mockDb.patients[ix] = { ...mockDb.patients[ix], ...data };
+       return { message: "Mock updated" };
+    }
+    return fetchApi(`/patients/${id}/`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+
+  deletePatient: async (id) => {
+    if (USE_MOCK) {
+       await delay();
+       const ix = mockDb.patients.findIndex(p => p.id === id);
+       if (ix !== -1) mockDb.patients.splice(ix, 1);
+       return { message: "Mock deleted" };
+    }
+    return fetchApi(`/patients/${id}/`, { method: 'DELETE' });
+  },
   
   // --- DOCTORS ---
   getDoctors: async () => {
@@ -138,15 +158,27 @@ export const api = {
     }
     return fetchApi('/appointments/', { method: 'POST', body: JSON.stringify(data) });
   },
-  
-  updateAppointmentStatus: async (id, status) => {
+
+  // FIX: Name matched with Appointments.jsx call
+  updateAppointment: async (id, data) => {
     if (USE_MOCK) {
        await delay();
        const ix = mockDb.appointments.findIndex(a => a.id === id);
-       if (ix !== -1) mockDb.appointments[ix].status = status;
+       if (ix !== -1) mockDb.appointments[ix] = { ...mockDb.appointments[ix], ...data };
        return { message: "Mock updated" };
     }
-    return fetchApi(`/appointments/${id}/`, { method: 'PUT', body: JSON.stringify({ status }) });
+    return fetchApi(`/appointments/${id}/`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+
+  // FIX: Delete function added
+  deleteAppointment: async (id) => {
+    if (USE_MOCK) {
+       await delay();
+       const ix = mockDb.appointments.findIndex(a => a.id === id);
+       if (ix !== -1) mockDb.appointments.splice(ix, 1);
+       return { message: "Mock deleted" };
+    }
+    return fetchApi(`/appointments/${id}/`, { method: 'DELETE' });
   },
   
   // --- MEDICAL RECORDS ---

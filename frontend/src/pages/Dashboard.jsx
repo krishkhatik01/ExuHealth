@@ -14,15 +14,23 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Calling your real Flask API
     api.getDashboardStats().then(stats => {
       setData(stats);
+      setLoading(false);
+    }).catch(err => {
+      console.error("Dashboard Load Error:", err);
       setLoading(false);
     });
   }, []);
 
-  if (loading || !data) return <div className="text-white">Loading...</div>;
+  if (loading || !data) return (
+    <div className="flex h-96 items-center justify-center text-white font-medium">
+      <div className="animate-pulse">Loading Live Hospital Data...</div>
+    </div>
+  );
 
-  // Format Recharts data
+  // Revenue Bar Chart Data (Placeholder for structure)
   const revenueData = [
     { name: '10 May', Income: 80, Expense: 55 },
     { name: '11 May', Income: 65, Expense: 45 },
@@ -33,36 +41,36 @@ export default function Dashboard() {
     { name: '16 May', Income: 95, Expense: 55 },
   ];
 
+  // REAL DATA: Mapping patient stats from SQL to the Pie Chart
   const patientPieData = [
-    { name: 'New', value: data.patient_stats.new, color: '#6366f1' }, // Indigo
-    { name: 'Recovered', value: data.patient_stats.recovered, color: '#f59e0b' }, // Amber
-    { name: 'In Treatment', value: data.patient_stats.in_treatment, color: '#f43f5e' }, // Rose
+    { name: 'New', value: data.patient_stats.new || 0, color: '#6366f1' }, 
+    { name: 'Recovered', value: data.patient_stats.recovered || 0, color: '#f59e0b' }, 
+    { name: 'In Treatment', value: data.patient_stats.in_treatment || 0, color: '#f43f5e' }, 
   ];
 
-  // Colors based on Rhythm admin
-  const admissionPies = [
-    { name: 'Cardiology', value: 3, color: '#f59e0b' }, // Amber
-    { name: 'Neuro', value: 2, color: '#f43f5e' }, // Rose
-    { name: 'Ortho', value: 2, color: '#0ea5e9' }, // sky 
-    { name: 'Gen Med', value: 2, color: '#10b981' }, // emr
-  ];
+  // Mapping Department counts from SQL
+  const admissionPies = data.dept_doctor_count.map((dept, index) => ({
+    name: dept.dept_name,
+    value: dept.doctor_count,
+    color: ['#f59e0b', '#f43f5e', '#0ea5e9', '#10b981'][index % 4]
+  }));
 
   return (
     <div className="space-y-6">
-      {/* Top Stat Cards */}
+      {/* Top Stat Cards - ALL REAL DATA NOW */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard icon={LuUsers} title="Patients" val="1,421" color="bg-brand-danger" />
-        <StatCard icon={LuStethoscope} title="Staffs" val="1,521" color="bg-brand-warning" />
-        <StatCard icon={LuBedDouble} title="Rooms" val="2,415" color="bg-brand-highlight" />
-        <StatCard icon={LuCalendarDays} title="Appointments" val="15" color="bg-brand-primary" />
+        <StatCard icon={LuUsers} title="Patients" val={data.total_patients.toLocaleString('en-IN')} color="bg-brand-danger" />
+        <StatCard icon={LuStethoscope} title="Staffs" val={data.total_staff.toLocaleString('en-IN')} color="bg-brand-warning" /> 
+        <StatCard icon={LuBedDouble} title="Available Rooms" val={data.available_rooms.toLocaleString('en-IN')} color="bg-brand-highlight" />
+        <StatCard icon={LuCalendarDays} title="Today's Appts" val={data.todays_appointments.toLocaleString('en-IN')} color="bg-brand-primary" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Patients Donut */}
+        {/* Patients Donut - UPDATED WITH REAL TOTALS */}
         <div className="bg-navy-700 rounded-xl p-5 border border-slate-700/50 shadow-sm flex flex-col">
           <h2 className="text-lg font-semibold text-white mb-1">Patients</h2>
           <div className="text-slate-400 text-sm mb-4">Total Patients</div>
-          <div className="text-3xl font-bold text-brand-highlight mb-6">412,154 People</div>
+          <div className="text-3xl font-bold text-brand-highlight mb-6">{data.total_patients.toLocaleString('en-IN')} People</div>
           
           <div className="flex-1 flex justify-center mt-2 relative">
              <ResponsiveContainer width="100%" height={220}>
@@ -76,7 +84,7 @@ export default function Dashboard() {
              </ResponsiveContainer>
              <div className="absolute top-1/2 left-[40%] transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
                 <div className="text-slate-400 text-sm">Total</div>
-                <div className="text-white font-bold text-lg">145212</div>
+                <div className="text-white font-bold text-lg">{data.total_patients}</div>
              </div>
              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 space-y-4">
                 {patientPieData.map((d, i) => (
@@ -92,12 +100,14 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Daily Revenue Bar Chart */}
+        {/* Daily Revenue - UPDATED TO RUPEES */}
         <div className="bg-navy-700 rounded-xl p-5 border border-slate-700/50 shadow-sm col-span-1 xl:col-span-1">
           <h2 className="text-lg font-semibold text-white mb-4">Daily Revenue Report</h2>
           <div className="flex items-baseline gap-2 mb-8">
-            <span className="text-3xl font-bold text-brand-secondary">$32,485</span>
-            <span className="text-slate-400 text-sm flex items-center"><LuTrendingUp className="mr-1" /> $12,458</span>
+            <span className="text-3xl font-bold text-brand-secondary">₹{data.total_revenue.toLocaleString('en-IN')}</span>
+            <span className="text-slate-400 text-sm flex items-center">
+                <LuTrendingUp className="mr-1" /> Coll: ₹{data.collected.toLocaleString('en-IN')}
+            </span>
           </div>
           <div className="h-[220px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -105,7 +115,11 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} angle={-45} textAnchor="end" height={40}/>
                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dx={-10}/>
-                <Tooltip cursor={{fill: '#0f172a'}} contentStyle={{backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff'}} />
+                <Tooltip 
+                  cursor={{fill: '#0f172a'}} 
+                  formatter={(value) => `₹${value.toLocaleString('en-IN')}`}
+                  contentStyle={{backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff'}} 
+                />
                 <Bar dataKey="Income" fill="#f43f5e" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="Expense" fill="#6366f1" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -117,122 +131,74 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Right Cards list */}
+        {/* Pending Bills Section */}
         <div className="space-y-6">
            <div className="bg-navy-700 rounded-xl p-5 border border-slate-700/50 shadow-sm flex flex-col h-[230px] overflow-hidden">
                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-semibold text-white">Available Doctors</h2>
-                  <span className="text-slate-400 text-sm">Today</span>
+                  <h2 className="text-lg font-semibold text-white">Pending Bills</h2>
+                  <span className="bg-red-500/20 text-red-500 px-2 py-0.5 rounded text-xs">{data.pending_bills} Bills</span>
                </div>
-               <div className="space-y-4 overflow-y-auto pr-2">
-                  {[
-                     {name: 'Dr. Priya Sharma', role: 'Cardiologist', img: 'PS'},
-                     {name: 'Dr. Arjun Nair', role: 'Ophthalmologist', img: 'AN'},
-                     {name: 'Dr. Kavya Joshi', role: 'Physician', img: 'KJ'}
-                  ].map((doc, i) => (
-                    <div key={i} className="flex justify-between items-center group cursor-pointer p-2 -mx-2 rounded-lg hover:bg-slate-800 transition-colors">
-                       <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-white text-navy-900 flex items-center justify-center font-bold">{doc.img}</div>
-                          <div>
-                             <div className="font-semibold text-brand-primary">{doc.name}</div>
-                             <div className="text-xs text-slate-400">{doc.role}</div>
-                          </div>
-                       </div>
-                       <FiMoreHorizontal className="text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  ))}
+               <div className="text-white text-sm">
+                   Total Pending Amount: <span className="text-brand-secondary font-bold text-xl block mt-1">₹{data.pending_amount.toLocaleString('en-IN')}</span>
                </div>
            </div>
 
-           {/* Doctor of the Month */}
            <div className="bg-gradient-to-br from-brand-highlight to-blue-800 rounded-xl p-5 shadow-sm text-balance relative overflow-hidden h-[240px]">
-               <h2 className="text-lg font-semibold text-white mb-2 relative z-10">Doctor of the Month</h2>
+               <h2 className="text-lg font-semibold text-white mb-2 relative z-10">Live Stats</h2>
                <div className="flex flex-col items-center mt-3 relative z-10">
-                  <div className="w-[72px] h-[72px] rounded-full bg-white flex items-center justify-center text-navy-900 border-4 border-indigo-400 shadow-xl mb-3 font-bold text-xl">PS</div>
-                  <div className="text-xl font-bold text-white">Dr. Priya Sharma</div>
-                  <div className="text-indigo-200 text-sm mb-4">Cardiologist</div>
+                  <div className="text-xl font-bold text-white uppercase tracking-widest">ExuHealth Live</div>
+                  <div className="text-indigo-200 text-sm mb-4">System Online</div>
                   
                   <div className="flex justify-between w-full px-4 text-center mt-2">
                      <div>
-                        <div className="text-white font-bold text-2xl flex items-center gap-2"><LuCheck /> 45</div>
-                        <div className="text-indigo-200 text-xs">Patients</div>
+                        <div className="text-white font-bold text-2xl">{data.total_patients}</div>
+                        <div className="text-indigo-200 text-xs">Total Records</div>
                      </div>
                      <div>
-                        <div className="text-white font-bold text-2xl flex items-center gap-2"><LuUsers /> 3</div>
-                        <div className="text-indigo-200 text-xs">Operations</div>
+                        <div className="text-white font-bold text-2xl">{data.available_rooms}</div>
+                        <div className="text-indigo-200 text-xs">Empty Beds</div>
                      </div>
                   </div>
                </div>
-               
-               {/* Abstract background shapes */}
-               <div className="absolute top-[-20%] right-[-10%] w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-               <div className="absolute bottom-[-10%] left-[-20%] w-40 h-40 bg-black/20 rounded-full blur-3xl"></div>
            </div>
         </div>
       </div>
 
+      {/* Recent Appointments List - DYNAMIC FROM SQL */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-         {/* Next Patient */}
-         <div className="bg-navy-700 rounded-xl p-5 border border-slate-700/50 shadow-sm flex flex-col justify-between">
-            <div className="flex justify-between items-center mb-6">
-               <h2 className="text-lg font-semibold text-white">Next Patient</h2>
-               <div className="flex gap-2">
-                  <button className="w-6 h-6 rounded bg-slate-800 text-slate-300 flex justify-center items-center">&lt;</button>
-                  <button className="w-6 h-6 rounded bg-slate-800 text-slate-300 flex justify-center items-center">&gt;</button>
-               </div>
-            </div>
-            
-            <div className="flex justify-between items-center mb-6">
-               <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-bold text-xl border border-emerald-500/50">RV</div>
-                  <div>
-                     <div className="text-white font-bold text-lg">Rahul Verma</div>
-                     <div className="text-brand-primary text-sm flex items-center gap-1">Emergency appointment</div>
-                  </div>
-               </div>
-               <button className="w-10 h-10 rounded-full bg-white text-navy-900 flex justify-center items-center hover:bg-slate-200 transition-colors shadow-lg">
-                  <LuPhone className="w-5 h-5 fill-current" />
-               </button>
-            </div>
-            
-            <div className="border-t border-dashed border-slate-600 pt-4 flex justify-between text-sm text-slate-400 items-center">
-               <div className="flex gap-4">
-                  <span className="flex items-center gap-1"><LuCalendarDays className="w-4 h-4"/> 10:00</span>
-                  <span>$ 30</span>
-               </div>
-               <FiMoreHorizontal className="w-5 h-5" />
+         <div className="bg-navy-700 rounded-xl p-5 border border-slate-700/50 shadow-sm flex flex-col xl:col-span-2">
+            <h2 className="text-lg font-semibold text-white mb-4">Recent Appointments</h2>
+            <div className="overflow-x-auto">
+               <table className="w-full text-left text-sm">
+                  <thead>
+                     <tr className="text-slate-400 border-b border-slate-700">
+                        <th className="pb-3">Patient</th>
+                        <th className="pb-3">Doctor</th>
+                        <th className="pb-3">Time</th>
+                        <th className="pb-3 text-right">Status</th>
+                     </tr>
+                  </thead>
+                  <tbody className="text-white divide-y divide-slate-800">
+                     {data.recent_appointments.map((appt, i) => (
+                        <tr key={i} className="hover:bg-slate-800/30">
+                           <td className="py-3">{appt.patient}</td>
+                           <td className="py-3 text-brand-primary">{appt.doctor}</td>
+                           <td className="py-3 text-slate-400">{appt.time}</td>
+                           <td className="py-3 text-right">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${appt.status === 'Completed' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'}`}>
+                                 {appt.status}
+                              </span>
+                           </td>
+                        </tr>
+                     ))}
+                  </tbody>
+               </table>
             </div>
          </div>
 
-         {/* Lab Tests (Mock) */}
-         <div className="bg-navy-700 rounded-xl p-5 border border-slate-700/50 shadow-sm flex flex-col justify-between">
-            <div className="flex justify-between items-center mb-6">
-               <h2 className="text-lg font-semibold text-white">Laboratory tests</h2>
-               <div className="flex gap-2">
-                  <button className="w-6 h-6 rounded bg-slate-800 text-slate-300 flex justify-center items-center">&lt;</button>
-                  <button className="w-6 h-6 rounded bg-slate-800 text-slate-300 flex justify-center items-center">&gt;</button>
-               </div>
-            </div>
-            
-            <div className="mb-6">
-               <div className="flex justify-between items-center mb-1">
-                 <div className="text-slate-400 text-sm flex items-center gap-1">O Sneha Patel</div>
-                 <FiMoreHorizontal className="text-slate-400 w-5 h-5" />
-               </div>
-               <div className="text-brand-primary font-bold text-lg">Complete Blood Count</div>
-               <div className="text-emerald-500 text-sm flex items-center gap-1">Routine Test <div className="w-2 h-2 rounded-full bg-emerald-500"></div></div>
-            </div>
-            
-            <div className="flex gap-2 text-sm mt-auto">
-               <button className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition-colors">Details</button>
-               <button className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition-colors">Contact Patient</button>
-               <button className="ml-auto px-4 py-1.5 rounded-lg bg-white text-navy-900 font-medium flex items-center gap-1 hover:bg-slate-200 transition-colors"><LuCheck/> Archive</button>
-            </div>
-         </div>
-
-         {/* Admission By Division */}
+         {/* Admission By Division - DYNAMIC FROM SQL */}
          <div className="bg-navy-700 rounded-xl p-5 border border-slate-700/50 shadow-sm">
-            <h2 className="text-lg font-semibold text-white mb-2">Admission by Division</h2>
+            <h2 className="text-lg font-semibold text-white mb-2">Doctor Share by Dept</h2>
             <div className="h-[200px]">
                <ResponsiveContainer width="100%" height="100%">
                  <PieChart>
@@ -241,8 +207,17 @@ export default function Dashboard() {
                            <Cell key={`cell-${index}`} fill={entry.color} />
                        ))}
                     </Pie>
+                    <Tooltip formatter={(value) => [`${value} Doctors`, 'Count']} />
                  </PieChart>
                </ResponsiveContainer>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+                {admissionPies.map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 text-[10px] text-slate-300">
+                        <div className="w-2 h-2 rounded-full" style={{backgroundColor: item.color}}></div>
+                        {item.name} ({item.value})
+                    </div>
+                ))}
             </div>
          </div>
       </div>

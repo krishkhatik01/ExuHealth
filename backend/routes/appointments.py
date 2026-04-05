@@ -109,3 +109,24 @@ def update_appointment(id):
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+
+# --- ADDED THIS TO FIX THE 405 ERROR ---
+@appointments_bp.route('/appointments/<int:id>/', methods=['DELETE', 'OPTIONS'])
+def delete_appointment(id):
+    if request.method == 'OPTIONS': 
+        return jsonify({}), 200
+    
+    conn = get_db_connection()
+    if not conn: 
+        return jsonify({"error": "DB Connection Failed"}), 500
+    
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM tbl_appointment WHERE id = ?", (id,))
+        conn.commit()
+        return jsonify({"message": "Appointment deleted successfully"}), 200
+    except Exception as e:
+        print(f"❌ SQL Delete Error: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()

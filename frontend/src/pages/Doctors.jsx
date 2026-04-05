@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { LuLayoutGrid, LuList, LuFilter, LuPhoneCall } from 'react-icons/lu';
-import { FiMoreHorizontal } from 'react-icons/fi';
+import { FiMoreHorizontal, FiEdit, FiTrash, FiMoreVertical } from 'react-icons/fi';
+import { useToast } from '../context/ToastContext';
 
 export default function Doctors() {
   const [doctors, setDoctors] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [selectedDept, setSelectedDept] = useState('All');
   const [view, setView] = useState('grid'); // 'grid' | 'list'
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     api.getDoctors().then(setDoctors);
@@ -19,6 +22,21 @@ export default function Doctors() {
   }, []);
 
   const filtered = selectedDept === 'All' ? doctors : doctors.filter(d => d.department === selectedDept);
+
+  const handleDelete = async (id) => {
+    if(window.confirm("Are you sure you want to delete this record?")) {
+      try {
+        setOpenMenuId(null);
+        await api.deleteDoctor(id);
+        setDoctors(prev => prev.filter(d => d.id !== id));
+        showToast('Deleted doctor successfully', 'success');
+      } catch (err) {
+        console.error("Delete failed:", err);
+        showToast(err.response?.data?.error || 'Delete failed', 'error');
+        api.getDoctors().then(setDoctors); // fallback
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -62,8 +80,32 @@ export default function Doctors() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filtered.map(doctor => (
             <div key={doctor.id} className="bg-navy-700 rounded-xl p-5 border border-slate-700/50 shadow-sm hover:border-brand-primary/50 transition-colors group relative overflow-hidden flex flex-col">
-              <div className="absolute top-4 right-4 cursor-pointer text-slate-400 hover:text-white z-10">
-                 <FiMoreHorizontal className="w-5 h-5"/>
+              <div className="absolute top-4 right-4 z-10">
+                 <button 
+                   onClick={() => setOpenMenuId(openMenuId === doctor.id ? null : doctor.id)}
+                   className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full cursor-pointer transition-colors"
+                 >
+                   <FiMoreHorizontal className="w-5 h-5"/>
+                 </button>
+                 
+                 {openMenuId === doctor.id && (
+                   <>
+                     <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)}></div>
+                     <div className="absolute right-0 top-8 w-32 bg-navy-900 border border-slate-700 rounded-lg shadow-xl z-50 py-1 overflow-hidden">
+                       <button 
+                         className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 transition-colors"
+                       >
+                         <FiEdit className="w-4 h-4" /> Edit
+                       </button>
+                       <button 
+                         onClick={() => handleDelete(doctor.id)}
+                         className="w-full flex items-center gap-2 px-4 py-2 text-sm text-brand-danger hover:bg-slate-800 transition-colors"
+                       >
+                         <FiTrash className="w-4 h-4" /> Delete
+                       </button>
+                     </div>
+                   </>
+                 )}
               </div>
               <div className="flex flex-col items-center text-center pt-2">
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-brand-primary to-brand-highlight flex items-center justify-center text-white text-2xl font-bold shadow-lg mb-4 ring-4 ring-navy-800">
@@ -97,6 +139,7 @@ export default function Doctors() {
                  <th className="py-4 px-6 text-xs uppercase text-slate-400 font-semibold">Department</th>
                  <th className="py-4 px-6 text-xs uppercase text-slate-400 font-semibold">Phone</th>
                  <th className="py-4 px-6 text-xs uppercase text-slate-400 font-semibold text-right">Patients</th>
+                 <th className="py-4 px-6 text-xs uppercase text-slate-400 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
@@ -116,6 +159,31 @@ export default function Doctors() {
                      </td>
                      <td className="py-3 px-6 text-slate-300">{doctor.phone}</td>
                      <td className="py-3 px-6 text-right text-brand-primary font-bold">{doctor.patients_count}</td>
+                     <td className="py-3 px-6 text-right relative">
+                        <button 
+                          onClick={() => setOpenMenuId(openMenuId === doctor.id ? null : doctor.id)}
+                          className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-colors"
+                        >
+                          <FiMoreHorizontal className="w-5 h-5" />
+                        </button>
+
+                        {openMenuId === doctor.id && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)}></div>
+                            <div className="absolute right-10 top-2 w-32 bg-navy-900 border border-slate-700 rounded-lg shadow-xl z-50 py-1 overflow-hidden">
+                              <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 transition-colors">
+                                <FiEdit className="w-4 h-4" /> Edit
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(doctor.id)}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-brand-danger hover:bg-slate-800 transition-colors"
+                              >
+                                <FiTrash className="w-4 h-4" /> Delete
+                              </button>
+                            </div>
+                          </>
+                        )}
+                     </td>
                   </tr>
                ))}
             </tbody>

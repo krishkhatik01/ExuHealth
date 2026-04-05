@@ -47,22 +47,17 @@ def add_patient():
     finally:
         conn.close()
 
-# --- PUT & DELETE: Edit/Delete karne ke liye (Tera Original Code) ---
-@patients_bp.route('/patients/<int:id>/', methods=['PUT', 'DELETE', 'OPTIONS'])
-def p_ops(id):
+# --- PUT: Edit karne ke liye ---
+@patients_bp.route('/patients/<int:id>/', methods=['PUT', 'OPTIONS'])
+def update_patient(id):
     if request.method == 'OPTIONS': return jsonify({}), 200
     
+    data = request.json
     conn = get_db_connection()
-    cursor = conn.cursor()
+    if not conn: return jsonify({"error": "DB Connection Failed"}), 500
     
-    if request.method == 'DELETE':
-        cursor.execute("DELETE FROM tbl_patient WHERE id=?", (id,))
-        conn.commit()
-        conn.close()
-        return jsonify({"message": "Patient deleted"})
-        
-    elif request.method == 'PUT':
-        data = request.json
+    cursor = conn.cursor()
+    try:
         cursor.execute("""
             UPDATE tbl_patient 
             SET name=?, blood_group=?, gender=?, phone=?, status=?
@@ -70,5 +65,28 @@ def p_ops(id):
         """, (data['name'], data['blood_group'], data['gender'], 
               data['phone'], data['status'], id))
         conn.commit()
+        return jsonify({"message": "Patient updated successfully"}), 200
+    except Exception as e:
+        print(f"❌ SQL Error: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
         conn.close()
-        return jsonify({"message": "Patient updated"})
+
+# --- DELETE: Delete karne ke liye ---
+@patients_bp.route('/patients/<int:id>/', methods=['DELETE', 'OPTIONS'])
+def delete_patient(id):
+    if request.method == 'OPTIONS': return jsonify({}), 200
+    
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB Connection Failed"}), 500
+    
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM tbl_patient WHERE id=?", (id,))
+        conn.commit()
+        return jsonify({"message": "Patient deleted successfully"}), 200
+    except Exception as e:
+        print(f"❌ SQL Error: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()

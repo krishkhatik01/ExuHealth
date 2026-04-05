@@ -13,30 +13,34 @@ def get_dashboard():
     
     cursor = conn.cursor()
     
-    # Total Patients
+    # 1. Total Patients
     cursor.execute("SELECT COUNT(*) AS total_patients FROM tbl_patient")
     total_patients = fetch_one(cursor)['total_patients']
     
-    # Appointments Today
+    # 2. Total Staff (FIXED: Ab "kuch bhi" data nahi aayega)
+    cursor.execute("SELECT COUNT(*) AS total_staff FROM tbl_staff")
+    total_staff = fetch_one(cursor)['total_staff']
+    
+    # 3. Appointments Today
     cursor.execute("SELECT COUNT(*) AS todays_appointments FROM tbl_appointment WHERE appointment_date = CAST(GETDATE() AS DATE)")
     todays_appointments = fetch_one(cursor)['todays_appointments']
     
-    # Available Rooms
+    # 4. Available Rooms
     cursor.execute("SELECT COUNT(*) AS available_rooms FROM tbl_room WHERE is_available = 1")
     available_rooms = fetch_one(cursor)['available_rooms']
     
-    # Pending Bills
+    # 5. Pending Bills
     cursor.execute("SELECT COUNT(*) AS pending_bills FROM tbl_billing WHERE status = 'Pending' OR status = 'Partial'")
     pending_bills = fetch_one(cursor)['pending_bills']
     
-    # Revenue Stats
+    # 6. Revenue Stats
     cursor.execute("SELECT ISNULL(SUM(total_amount), 0) AS total_revenue, ISNULL(SUM(paid_amount), 0) AS collected FROM tbl_billing")
     rev = fetch_one(cursor)
     total_revenue = float(rev['total_revenue']) if rev['total_revenue'] else 0
     collected = float(rev['collected']) if rev['collected'] else 0
     pending_amount = total_revenue - collected
     
-    # Recent Appointments
+    # 7. Recent Appointments
     cursor.execute("""
         SELECT TOP 5 p.name as patient, d.name as doctor, a.appointment_date as date, a.appointment_time as time, a.status 
         FROM tbl_appointment a
@@ -47,10 +51,10 @@ def get_dashboard():
     recent_appointments = []
     for row in fetch_all(cursor):
         row['date'] = str(row['date'])
-        row['time'] = str(row['time'])
+        row['time'] = str(row['time'])[:5] # Time format clean (HH:MM)
         recent_appointments.append(row)
         
-    # Dept Doctor Count
+    # 8. Dept Doctor Count
     cursor.execute("""
         SELECT dep.name as dept_name, COUNT(doc.id) as doctor_count
         FROM tbl_department dep
@@ -59,7 +63,7 @@ def get_dashboard():
     """)
     dept_doctor_count = fetch_all(cursor)
     
-    # Patient Stats
+    # 9. Patient Stats (Pie Chart)
     cursor.execute("SELECT status, COUNT(*) as count FROM tbl_patient GROUP BY status")
     p_stats = fetch_all(cursor)
     patient_stats = {"new": 0, "recovered": 0, "in_treatment": 0}
@@ -72,6 +76,7 @@ def get_dashboard():
     
     return jsonify({
         "total_patients": total_patients,
+        "total_staff": total_staff,
         "todays_appointments": todays_appointments,
         "available_rooms": available_rooms,
         "pending_bills": pending_bills,

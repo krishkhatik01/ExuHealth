@@ -27,7 +27,7 @@ export default function Sidebar() {
           <div className="bg-brand-danger rounded-full p-1.5 flex items-center justify-center">
              <LuStethoscope className="text-white w-5 h-5" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-white">ExuHealth Hospital</span>
+          <span className="text-xl font-bold tracking-tight text-white"></span>
         </div>
       </div>
 

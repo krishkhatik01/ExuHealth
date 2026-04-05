@@ -8,6 +8,7 @@ import { useToast } from '../context/ToastContext';
 export default function Patients() {
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [openMenuId, setOpenMenuId] = useState(null);
   const { showToast } = useToast();
   
   // Modal State
@@ -24,6 +25,21 @@ export default function Patients() {
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     p.phone.includes(searchTerm)
   );
+
+  const handleDelete = async (id) => {
+    if(window.confirm("Are you sure you want to delete this record?")) {
+      try {
+        setOpenMenuId(null);
+        await api.deletePatient(id);
+        setPatients(prev => prev.filter(p => p.id !== id));
+        showToast('Deleted patient successfully', 'success');
+      } catch (err) {
+        console.error("Delete failed:", err);
+        showToast('Delete failed', 'error');
+        api.getPatients().then(setPatients); // fallback sync
+      }
+    }
+  };
 
   const handleSave = async (e) => {
     if (e) e.preventDefault();
@@ -129,18 +145,32 @@ export default function Patients() {
                   <td className="py-3 px-6">
                     <StatusBadge status={patient.status} />
                   </td>
-                  <td className="py-3 px-6 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-1.5 text-slate-400 hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors">
-                        <FiEdit className="w-4 h-4" />
-                      </button>
-                      <button className="p-1.5 text-slate-400 hover:text-brand-danger hover:bg-brand-danger/10 rounded-md transition-colors">
-                        <FiTrash className="w-4 h-4" />
-                      </button>
-                      <button className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-md transition-colors">
-                        <FiMoreVertical className="w-4 h-4" />
-                      </button>
-                    </div>
+                  <td className="py-3 px-6 text-right relative">
+                    <button 
+                      onClick={() => setOpenMenuId(openMenuId === patient.id ? null : patient.id)}
+                      className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-colors"
+                    >
+                      <FiMoreVertical className="w-5 h-5" />
+                    </button>
+
+                    {openMenuId === patient.id && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)}></div>
+                        <div className="absolute right-10 top-2 w-32 bg-navy-900 border border-slate-700 rounded-lg shadow-xl z-50 py-1 overflow-hidden">
+                          <button 
+                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 transition-colors"
+                          >
+                            <FiEdit className="w-4 h-4" /> Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(patient.id)}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-brand-danger hover:bg-slate-800 transition-colors"
+                          >
+                            <FiTrash className="w-4 h-4" /> Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}
