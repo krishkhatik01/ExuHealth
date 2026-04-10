@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Patients - Hospital Management{% endblock %}
+{% block page_name %}Patient Management{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <div class="card-header">
+        <h2>All Patients</h2>
+        <button class="btn btn-primary btn-sm" onclick="openModal('addPatientModal')">+ Admit Patient</button>
+    </div>
+
+    <div class="table-wrap">
+        {% if patients %}
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Age</th>
+                    <th>Phone</th>
+                    <th>Health Issue</th>
+                    <th>Assigned Doctor</th>
+                    <th>Status</th>
+                    <th>Admit Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in patients %}
+                <tr>
+                    <td style="color:#a0aec0">{{ p['id'] }}</td>
+                    <td><strong>{{ p['name'] }}</strong></td>
+                    <td>{{ p['age'] or '—' }}</td>
+                    <td>{{ p['phone'] or '—' }}</td>
+                    <td>{{ p['health_issue'] }}</td>
+                    <td>
+                        {% if p['doctor_name'] %}
+                            <span style="color:#2a4365">👨‍⚕️ {{ p['doctor_name'] }}</span>
+                        {% else %}
+                            <span style="color:#a0aec0">Not assigned</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ p['status'].lower() }}">{{ p['status'] }}</span>
+                    </td>
+                    <td style="color:#718096; font-size:13px;">{{ p['admit_date'] }}</td>
+                    <td>
+                        <div style="display:flex; gap:6px;">
+                            {% if p['status'] == 'Active' %}
+                            <form method="POST" action="/patients/discharge/{{ p['id'] }}"
+                                  onsubmit="return confirm('Discharge this patient?')">
+                                <button type="submit" class="btn btn-warning btn-sm">Discharge</button>
+                            </form>
+                            {% endif %}
+                            <form method="POST" action="/patients/delete/{{ p['id'] }}"
+                                  onsubmit="return confirm('Delete this patient record?')">
+                                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">🛏️</div>
+            <p>No patients admitted yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Patient Modal -->
+<div class="modal-overlay" id="addPatientModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Admit New Patient</h3>
+            <button class="modal-close" onclick="closeModal('addPatientModal')">×</button>
+        </div>
+        <form method="POST" action="/patients/add">
+            <div class="modal-body">
+                <div class="form-row cols-2">
+                    <div class="form-group">
+                        <label>Patient Name *</label>
+                        <input type="text" name="name" required placeholder="Amit Patel">
+                    </div>
+                    <div class="form-group">
+                        <label>Age</label>
+                        <input type="number" name="age" placeholder="35" min="0" max="120">
+                    </div>
+                </div>
+                <div class="form-row cols-2">
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="text" name="phone" placeholder="9876543210">
+                    </div>
+                    <div class="form-group">
+                        <label>Assign Doctor</label>
+                        <select name="assigned_doctor_id">
+                            <option value="">-- Select Doctor --</option>
+                            {% for d in doctors %}
+                                <option value="{{ d['id'] }}">{{ d['name'] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Health Issue / Diagnosis *</label>
+                        <input type="text" name="health_issue" required placeholder="e.g. Fever, Diabetes, Fracture...">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('addPatientModal')">Cancel</button>
+                <button type="submit" class="btn btn-success">Admit Patient</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

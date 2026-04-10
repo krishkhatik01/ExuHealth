@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Staff - Hospital Management{% endblock %}
+{% block page_name %}Staff Management{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <div class="card-header">
+        <h2>All Staff Members</h2>
+        <button class="btn btn-primary btn-sm" onclick="openModal('addStaffModal')">+ Add Staff</button>
+    </div>
+
+    <div class="table-wrap">
+        {% if staff %}
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Specialization</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th>Joining Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in staff %}
+                <tr>
+                    <td style="color:#a0aec0">{{ s['id'] }}</td>
+                    <td><strong>{{ s['name'] }}</strong></td>
+                    <td>
+                        <span class="badge badge-{{ s['role'].lower() }}">{{ s['role'] }}</span>
+                    </td>
+                    <td>{{ s['specialization'] or '—' }}</td>
+                    <td>{{ s['phone'] or '—' }}</td>
+                    <td>{{ s['email'] or '—' }}</td>
+                    <td style="color:#718096; font-size:13px;">{{ s['joining_date'] }}</td>
+                    <td>
+                        <form method="POST" action="/staff/delete/{{ s['id'] }}"
+                              onsubmit="return confirm('Remove this staff member?')">
+                            <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">👨‍⚕️</div>
+            <p>No staff members yet. Add one to get started.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Staff Modal -->
+<div class="modal-overlay" id="addStaffModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Add Staff Member</h3>
+            <button class="modal-close" onclick="closeModal('addStaffModal')">×</button>
+        </div>
+        <form method="POST" action="/staff/add">
+            <div class="modal-body">
+                <div class="form-row cols-2">
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" name="name" required placeholder="Dr. Rajesh Kumar">
+                    </div>
+                    <div class="form-group">
+                        <label>Role *</label>
+                        <select name="role" id="roleSelect" onchange="toggleSpec(this.value)" required>
+                            <option value="">Select role</option>
+                            <option value="Doctor">Doctor</option>
+                            <option value="Staff">Staff</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row" id="specRow" style="display:none">
+                    <div class="form-group">
+                        <label>Specialization</label>
+                        <input type="text" name="specialization" placeholder="Cardiology, Neurology, etc.">
+                    </div>
+                </div>
+                <div class="form-row cols-2">
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="text" name="phone" placeholder="9876543210">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" placeholder="doctor@hospital.com">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('addStaffModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Staff</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleSpec(role) {
+    document.getElementById('specRow').style.display = role === 'Doctor' ? 'grid' : 'none';
+}
+</script>
+
+{% endblock %}
