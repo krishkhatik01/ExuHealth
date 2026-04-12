@@ -245,37 +245,7 @@ def add_staff():
     db.session.add(new_staff)
     db.session.flush()  # gets new_staff.id before commit
 
-    # ── If Doctor → auto-create User account ─────────────
-    if role == "Doctor":
-        # Clean username: "Dr. Rajesh Oberoi" → "dr_rajesh_oberoi"
-        clean = re.sub(r'[^a-z0-9]', '_', name.lower())
-        clean = re.sub(r'_+', '_', clean).strip('_')
-        username = f"dr_{clean}"
-
-        # Make unique if taken
-        base = username
-        counter = 1
-        while User.query.filter_by(username=username).first():
-            username = f"{base}_{counter}"
-            counter += 1
-
-        new_user = User(
-            username=username,
-            password_hash=generate_password_hash('doctor123'),
-            role='doctor',
-            full_name=name,
-            email=email
-        )
-        db.session.add(new_user)
-        db.session.flush()
-
-        flash(
-            f"Doctor '{name}' added! Login credentials → "
-            f"username: {username}  password: doctor123",
-            "success"
-        )
-    else:
-        flash(f"Staff member '{name}' added successfully.", "success")
+    flash(f"{role} '{name}' added successfully.", "success")
 
     db.session.commit()
     return redirect(url_for("staff"))
@@ -361,7 +331,10 @@ def add_patient():
         if age_int < 0 or age_int > 120:
             flash("Age must be between 0 and 120.", "error")
             return redirect(url_for("patients"))
-        date_of_birth = datetime.now().date() - timedelta(days=age_int * 365)
+        # Calculate approximate date of birth accounting for leap years
+        # Use 365.25 days per year to account for leap years
+        days_old = int(age_int * 365.25)
+        date_of_birth = datetime.now().date() - timedelta(days=days_old)
 
     if phone:
         if not is_valid_phone(phone):
@@ -421,6 +394,11 @@ def discharge_patient(patient_id):
 def delete_patient(patient_id):
     patient = Patient.query.get(patient_id)
     if patient:
+        # Delete related appointments first
+        Appointment.query.filter_by(patient_id=patient_id).delete()
+        # Delete related medical records
+        MedicalRecord.query.filter_by(patient_id=patient_id).delete()
+        # Now delete the patient
         db.session.delete(patient)
         db.session.commit()
         flash("Patient record deleted successfully.", "success")
@@ -445,10 +423,10 @@ def appointments():
                 a.status,
                 a.notes,
                 p.full_name                          AS patient_name,
-                COALESCE(u.full_name, u.username)    AS doctor_name
+                s.name                               AS doctor_name
             FROM appointments a
             JOIN patients p ON a.patient_id = p.id
-            JOIN users    u ON a.doctor_id  = u.id
+            JOIN staff    s ON a.doctor_id  = s.id
             ORDER BY a.appointment_date DESC
         """)).mappings().all()
         appointments_list = [dict(row) for row in result]
@@ -468,23 +446,18 @@ def appointments():
         flash(f'Error loading patients: {str(e)}', 'error')
         patients = []
 
-    # ── Doctor dropdown — full_name from users ────────────
+    # ── Doctor dropdown — from staff table ───────────────
     try:
         doctors_raw = db.session.execute(db.text("""
-            SELECT
-                id,
-                COALESCE(full_name, username) AS name
-            FROM users
-            WHERE role = 'doctor'
-            ORDER BY full_name, username
+            SELECT id, name
+            FROM staff
+            WHERE role = 'Doctor'
+            ORDER BY name
         """)).mappings().all()
         doctors = [dict(r) for r in doctors_raw]
     except Exception as e:
         flash(f'Error loading doctors: {str(e)}', 'error')
         doctors = []
-
-    print(f"DEBUG → doctors: {doctors}")
-    print(f"DEBUG → patients: {patients}")
 
     return render_template('appointments.html',
                            appointments=appointments_list,
@@ -516,9 +489,9 @@ def add_appointment():
         flash('Invalid date or time format.', 'error')
         return redirect(url_for('appointments'))
 
-    # ── Verify doctor in users table ──────────────────────
+    # ── Verify doctor in staff table ──────────────────────
     doctor = db.session.execute(db.text(
-        "SELECT id FROM users WHERE id = :id AND role = 'doctor'"
+        "SELECT id FROM staff WHERE id = :id AND role = 'Doctor'"
     ), {'id': int(doctor_id)}).fetchone()
 
     if not doctor:
@@ -646,3 +619,23 @@ if __name__ == "__main__":
             print("Default admin created → username: admin  password: admin123")
 
     app.run(debug=True)
+
+
+# ─── DEBUG ROUTE ─────────────────────────────────────────────────────
+
+@app.route('/recreate-admin')
+def recreate_admin():
+    """Debug route to recreate admin user"""
+    with app.app_context():
+        existing = User.query.filter_by(username='admin').first()
+        if existing:
+            db.session.delete(existing)
+            db.session.commit()
+        admin = User(
+            username='admin',
+            password_hash=generate_password_hash('admin123'),
+            role='admin'
+        )
+        db.session.add(admin)
+        db.session.commit()
+        return 'Admin recreated! username: admin, password: admin123'

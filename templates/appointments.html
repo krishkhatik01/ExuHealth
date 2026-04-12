@@ -30,7 +30,8 @@
         <tr>
           <td style="color:#a0aec0">{{ appt.id }}</td>
           <td><strong>{{ appt.patient_name }}</strong></td>
-          <td>{{ appt.doctor_name }}</td>
+          <td>{% if appt.doctor_name and not appt.doctor_name.startswith('Dr.') %}Dr. {% endif %}{{ appt.doctor_name or
+            '—' }}</td>
           <td style="color:#718096; font-size:13px;">{{ appt.appointment_date }}</td>
           <td>{{ appt.reason or '—' }}</td>
           <td>
@@ -104,7 +105,7 @@
             <select name="doctor_id" id="apptDoctor" required>
               <option value="">-- Select Doctor --</option>
               {% for d in doctors %}
-              <option value="{{ d.id }}">Dr. {{ d.name }}</option>
+              <option value="{{ d.id }}">{% if not d.name.startswith('Dr.') %}Dr. {% endif %}{{ d.name }}</option>
               {% endfor %}
             </select>
             {% if doctors|length == 0 %}
