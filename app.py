@@ -1,237 +1,648 @@
+"""
+EXUHEALTH Hospital Management System
+Flask + MySQL via SQLAlchemy
+"""
+
+import re
+import random
+import string
+import pymysql
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, session, redirect, url_for, flash
 from werkzeug.security import check_password_hash, generate_password_hash
-import sqlite3, os
+from config import Config
+from database import db, User, Patient, Staff, Appointment, MedicalRecord
+
+
+# ─── CREATE DATABASE IF NOT EXISTS ────────────────────────────────────
+
+def create_database_if_not_exists():
+    connection = pymysql.connect(
+        host=Config.MYSQL_HOST,
+        port=Config.MYSQL_PORT,
+        user=Config.MYSQL_USER,
+        password=Config.MYSQL_PASSWORD
+    )
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"CREATE DATABASE IF NOT EXISTS {Config.MYSQL_DB} "
+                "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+            )
+        connection.commit()
+        print(f"Database '{Config.MYSQL_DB}' ready")
+    finally:
+        connection.close()
+
+
+create_database_if_not_exists()
 
 app = Flask(__name__)
-app.secret_key = "hospital_secret_key"
-DB = "hospital.db"
+app.config.from_object(Config)
+db.init_app(app)
 
-# ─── DB SETUP ────────────────────────────────────────────────
 
-def get_db():
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row   # lets us use row['column_name']
-    return conn
+# ─── AUTH HELPER ───────────────────────────────────────────────────────
 
-def init_db():
-    conn = get_db()
-    c = conn.cursor()
+def login_required_session(f):
+    """Session-based login check — replaces Flask-Login decorator"""
+    from functools import wraps
 
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS admin (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL
-        )
-    """)
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "admin" not in session:
+            flash("Please log in to continue.", "warning")
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
 
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS staff (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            role TEXT NOT NULL,          -- 'Doctor' or 'Staff'
-            specialization TEXT,         -- only for doctors
-            phone TEXT,
-            email TEXT,
-            joining_date TEXT DEFAULT (DATE('now'))
-        )
-    """)
 
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS patients (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            age INTEGER,
-            phone TEXT,
-            health_issue TEXT NOT NULL,
-            assigned_doctor_id INTEGER,
-            status TEXT DEFAULT 'Active', -- Active / Discharged
-            admit_date TEXT DEFAULT (DATE('now')),
-            FOREIGN KEY (assigned_doctor_id) REFERENCES staff(id)
-        )
-    """)
+# ─── VALIDATION HELPERS ────────────────────────────────────────────────
 
-    # Create default admin if not exists
-    c.execute("SELECT id FROM admin WHERE username = 'admin'")
-    if not c.fetchone():
-        hashed = generate_password_hash("admin123")
-        c.execute("INSERT INTO admin (username, password) VALUES (?, ?)", ("admin", hashed))
+def is_letters_only(value):
+    return bool(re.match(r"^[A-Za-z\s\.\-]+$", value))
 
-    conn.commit()
-    conn.close()
 
-# ─── AUTH ────────────────────────────────────────────────────
+def is_valid_phone(value):
+    return bool(re.match(r"^\d{10}$", value))
+
+
+def is_valid_email(value):
+    return bool(re.match(r"^[\w\.\-]+@[\w\.\-]+\.\w{2,}$", value))
+
+
+def is_only_digits(value):
+    return bool(re.match(r"^\d+$", value))
+
+
+# ─── PATIENT ID GENERATOR ──────────────────────────────────────────────
+
+def generate_patient_id():
+    year = datetime.now().year
+    random_suffix = ''.join(random.choices(string.digits, k=4))
+    return f"PAT-{year}-{random_suffix}"
+
+
+# ─── RESET DATABASE ────────────────────────────────────────────────────
+
+@app.route("/reset-db")
+@login_required_session
+def reset_database():
+    db.drop_all()
+    db.create_all()
+    flash("Database reset successfully! Please login again.", "success")
+    session.clear()
+    return redirect(url_for("login"))
+
+
+# ─── AUTH ──────────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
     return redirect(url_for("login"))
 
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if "admin" in session:
+        return redirect(url_for("dashboard"))
+
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
 
-        conn = get_db()
-        user = conn.execute("SELECT * FROM admin WHERE username = ?", (username,)).fetchone()
-        conn.close()
+        if not username or not password:
+            flash("Username and password are required.", "error")
+            return render_template("login.html")
 
-        if user and check_password_hash(user["password"], password):
-            session["admin"] = user["username"]
+        user = User.query.filter_by(username=username).first()
+
+        if user and check_password_hash(user.password_hash, password):
+            session["admin"] = user.username
+            session["role"] = user.role
+            session["user_id"] = user.id
+            flash(f"Welcome, {user.username}!", "success")
             return redirect(url_for("dashboard"))
         else:
-            flash("Invalid username or password", "error")
+            flash("Invalid username or password.", "error")
 
     return render_template("login.html")
+
 
 @app.route("/logout")
 def logout():
     session.clear()
+    flash("Logged out successfully.", "success")
     return redirect(url_for("login"))
 
-def require_login():
-    if "admin" not in session:
-        return redirect(url_for("login"))
 
-# ─── DASHBOARD ───────────────────────────────────────────────
+# ─── DASHBOARD ─────────────────────────────────────────────────────────
 
 @app.route("/dashboard")
+@login_required_session
 def dashboard():
-    if "admin" not in session:
-        return redirect(url_for("login"))
+    total_staff = Staff.query.count()
+    total_doctors = Staff.query.filter_by(role='Doctor').count()
+    total_patients = Patient.query.count()
+    active_patients = Patient.query.filter_by(status='Active').count()
 
-    conn = get_db()
-    total_staff    = conn.execute("SELECT COUNT(*) FROM staff").fetchone()[0]
-    total_doctors  = conn.execute("SELECT COUNT(*) FROM staff WHERE role = 'Doctor'").fetchone()[0]
-    total_patients = conn.execute("SELECT COUNT(*) FROM patients").fetchone()[0]
-    active_patients= conn.execute("SELECT COUNT(*) FROM patients WHERE status = 'Active'").fetchone()[0]
-    conn.close()
+    today = datetime.now().date()
+    today_appts = Appointment.query.filter(
+        db.extract('year',  Appointment.appointment_date) == today.year,
+        db.extract('month', Appointment.appointment_date) == today.month,
+        db.extract('day',   Appointment.appointment_date) == today.day
+    ).count()
 
-    return render_template("dashboard.html",
+    recent_patients = Patient.query.order_by(
+        Patient.created_at.desc()).limit(10).all()
+
+    return render_template(
+        "dashboard.html",
         total_staff=total_staff,
         total_doctors=total_doctors,
         total_patients=total_patients,
-        active_patients=active_patients
+        active_patients=active_patients,
+        today_appts=today_appts,
+        recent_patients=recent_patients
     )
 
-# ─── STAFF ROUTES ────────────────────────────────────────────
+
+# ─── STAFF ROUTES ──────────────────────────────────────────────────────
 
 @app.route("/staff")
+@login_required_session
 def staff():
-    if "admin" not in session:
-        return redirect(url_for("login"))
+    all_staff = Staff.query.order_by(Staff.role, Staff.name).all()
+    staff_list = [{
+        'id':             s.id,
+        'name':           s.name,
+        'role':           s.role,
+        'specialization': s.specialization or '',
+        'phone':          s.phone or '',
+        'email':          s.email or '',
+        'joining_date':   s.joining_date.isoformat() if s.joining_date else ''
+    } for s in all_staff]
 
-    conn = get_db()
-    all_staff = conn.execute("SELECT * FROM staff ORDER BY role, name").fetchall()
-    conn.close()
-    return render_template("staff.html", staff=all_staff)
+    return render_template("staff.html", staff=staff_list)
+
 
 @app.route("/staff/add", methods=["POST"])
+@login_required_session
 def add_staff():
-    if "admin" not in session:
-        return redirect(url_for("login"))
+    name = request.form.get("name", "").strip()
+    role = request.form.get("role", "").strip()
+    specialization = request.form.get("specialization", "").strip()
+    phone = request.form.get("phone", "").strip()
+    email = request.form.get("email", "").strip()
 
-    name           = request.form["name"]
-    role           = request.form["role"]
-    specialization = request.form.get("specialization", "")
-    phone          = request.form.get("phone", "")
-    email          = request.form.get("email", "")
+    # ── Validations ───────────────────────────────────────
+    if not name:
+        flash("Full name is required.", "error")
+        return redirect(url_for("staff"))
+    if not is_letters_only(name):
+        flash("Name must contain letters only.", "error")
+        return redirect(url_for("staff"))
+    if len(name) < 2 or len(name) > 100:
+        flash("Name must be between 2 and 100 characters.", "error")
+        return redirect(url_for("staff"))
+    if role not in ["Doctor", "Staff"]:
+        flash("Role must be Doctor or Staff.", "error")
+        return redirect(url_for("staff"))
+    if role == "Doctor":
+        if not specialization:
+            flash("Specialization is required for Doctors.", "error")
+            return redirect(url_for("staff"))
+        if not is_letters_only(specialization):
+            flash("Specialization must contain letters only.", "error")
+            return redirect(url_for("staff"))
+    else:
+        specialization = None
 
-    conn = get_db()
-    conn.execute(
-        "INSERT INTO staff (name, role, specialization, phone, email) VALUES (?, ?, ?, ?, ?)",
-        (name, role, specialization, phone, email)
+    if phone and not is_valid_phone(phone):
+        flash("Phone must be exactly 10 digits.", "error")
+        return redirect(url_for("staff"))
+    phone = phone or None
+
+    if email:
+        if not is_valid_email(email):
+            flash("Invalid email format.", "error")
+            return redirect(url_for("staff"))
+        if Staff.query.filter_by(email=email).first():
+            flash("A staff member with this email already exists.", "error")
+            return redirect(url_for("staff"))
+    email = email or None
+
+    # ── Save to Staff table ───────────────────────────────
+    new_staff = Staff(
+        name=name,
+        role=role,
+        specialization=specialization,
+        phone=phone,
+        email=email,
+        joining_date=datetime.now().date(),
+        status='active'
     )
-    conn.commit()
-    conn.close()
+    db.session.add(new_staff)
+    db.session.flush()  # gets new_staff.id before commit
 
-    flash(f"{role} '{name}' added successfully", "success")
+    # ── If Doctor → auto-create User account ─────────────
+    if role == "Doctor":
+        # Clean username: "Dr. Rajesh Oberoi" → "dr_rajesh_oberoi"
+        clean = re.sub(r'[^a-z0-9]', '_', name.lower())
+        clean = re.sub(r'_+', '_', clean).strip('_')
+        username = f"dr_{clean}"
+
+        # Make unique if taken
+        base = username
+        counter = 1
+        while User.query.filter_by(username=username).first():
+            username = f"{base}_{counter}"
+            counter += 1
+
+        new_user = User(
+            username=username,
+            password_hash=generate_password_hash('doctor123'),
+            role='doctor',
+            full_name=name,
+            email=email
+        )
+        db.session.add(new_user)
+        db.session.flush()
+
+        flash(
+            f"Doctor '{name}' added! Login credentials → "
+            f"username: {username}  password: doctor123",
+            "success"
+        )
+    else:
+        flash(f"Staff member '{name}' added successfully.", "success")
+
+    db.session.commit()
     return redirect(url_for("staff"))
+
 
 @app.route("/staff/delete/<int:staff_id>", methods=["POST"])
+@login_required_session
 def delete_staff(staff_id):
-    if "admin" not in session:
-        return redirect(url_for("login"))
+    Patient.query.filter_by(assigned_doctor_id=staff_id).update(
+        {"assigned_doctor_id": None}
+    )
+    db.session.commit()
 
-    conn = get_db()
-    # Unassign patients before deleting
-    conn.execute("UPDATE patients SET assigned_doctor_id = NULL WHERE assigned_doctor_id = ?", (staff_id,))
-    conn.execute("DELETE FROM staff WHERE id = ?", (staff_id,))
-    conn.commit()
-    conn.close()
+    staff_member = Staff.query.get(staff_id)
+    if staff_member:
+        db.session.delete(staff_member)
+        db.session.commit()
+        flash("Staff member removed successfully.", "success")
+    else:
+        flash("Staff member not found.", "error")
 
-    flash("Staff member removed", "success")
     return redirect(url_for("staff"))
 
-# ─── PATIENT ROUTES ──────────────────────────────────────────
+
+# ─── PATIENT ROUTES ────────────────────────────────────────────────────
 
 @app.route("/patients")
+@login_required_session
 def patients():
-    if "admin" not in session:
-        return redirect(url_for("login"))
+    all_patients = Patient.query.order_by(Patient.admitted_date.desc()).all()
+    patient_list = []
 
-    conn = get_db()
-    all_patients = conn.execute("""
-        SELECT p.*, s.name as doctor_name
-        FROM patients p
-        LEFT JOIN staff s ON p.assigned_doctor_id = s.id
-        ORDER BY p.admit_date DESC
-    """).fetchall()
-    doctors = conn.execute("SELECT id, name FROM staff WHERE role = 'Doctor'").fetchall()
-    conn.close()
+    for p in all_patients:
+        doctor_name = None
+        if p.assigned_doctor_id:
+            doctor = Staff.query.get(p.assigned_doctor_id)
+            if doctor:
+                doctor_name = doctor.name
 
-    return render_template("patients.html", patients=all_patients, doctors=doctors)
+        patient_list.append({
+            'id':           p.id,
+            'patient_id':   p.patient_id,
+            'name':         p.full_name,
+            'age':          p.calculate_age() if hasattr(p, 'calculate_age') and p.date_of_birth else None,
+            'phone':        p.phone or '',
+            'health_issue': p.health_issue,
+            'doctor_name':  doctor_name,
+            'status':       p.status,
+            'admit_date':   p.admitted_date.isoformat() if p.admitted_date else ''
+        })
+
+    doctors = Staff.query.filter_by(role='Doctor').all()
+    doctor_list = [{"id": d.id, "name": d.name} for d in doctors]
+
+    return render_template("patients.html", patients=patient_list, doctors=doctor_list)
+
 
 @app.route("/patients/add", methods=["POST"])
+@login_required_session
 def add_patient():
-    if "admin" not in session:
-        return redirect(url_for("login"))
+    name = request.form.get("name", "").strip()
+    age = request.form.get("age", "").strip()
+    phone = request.form.get("phone", "").strip()
+    health_issue = request.form.get("health_issue", "").strip()
+    doctor_id = request.form.get("assigned_doctor_id") or None
 
-    name         = request.form["name"]
-    age          = request.form.get("age", "")
-    phone        = request.form.get("phone", "")
-    health_issue = request.form["health_issue"]
-    doctor_id    = request.form.get("assigned_doctor_id") or None
+    if not name:
+        flash("Patient name is required.", "error")
+        return redirect(url_for("patients"))
+    if not is_letters_only(name):
+        flash("Patient name must contain letters only.", "error")
+        return redirect(url_for("patients"))
+    if len(name) < 2 or len(name) > 100:
+        flash("Name must be between 2 and 100 characters.", "error")
+        return redirect(url_for("patients"))
 
-    conn = get_db()
-    conn.execute(
-        "INSERT INTO patients (name, age, phone, health_issue, assigned_doctor_id) VALUES (?, ?, ?, ?, ?)",
-        (name, age, phone, health_issue, doctor_id)
+    date_of_birth = None
+    if age:
+        if not re.match(r"^\d+$", age):
+            flash("Age must be a number.", "error")
+            return redirect(url_for("patients"))
+        age_int = int(age)
+        if age_int < 0 or age_int > 120:
+            flash("Age must be between 0 and 120.", "error")
+            return redirect(url_for("patients"))
+        date_of_birth = datetime.now().date() - timedelta(days=age_int * 365)
+
+    if phone:
+        if not is_valid_phone(phone):
+            flash("Phone must be exactly 10 digits.", "error")
+            return redirect(url_for("patients"))
+    else:
+        phone = None
+
+    if not health_issue:
+        flash("Health issue / diagnosis is required.", "error")
+        return redirect(url_for("patients"))
+    if is_only_digits(health_issue):
+        flash("Health issue cannot be just a number.", "error")
+        return redirect(url_for("patients"))
+    if len(health_issue) < 3:
+        flash("Please describe the health issue in more detail.", "error")
+        return redirect(url_for("patients"))
+
+    patient_id = generate_patient_id()
+    new_patient = Patient(
+        patient_id=patient_id,
+        full_name=name,
+        date_of_birth=date_of_birth,
+        phone=phone,
+        health_issue=health_issue,
+        admitted_date=datetime.now().date(),
+        status='Active',
+        assigned_doctor_id=doctor_id
     )
-    conn.commit()
-    conn.close()
+    db.session.add(new_patient)
+    db.session.commit()
 
-    flash(f"Patient '{name}' admitted successfully", "success")
+    flash(f"Patient '{name}' admitted successfully.", "success")
     return redirect(url_for("patients"))
+
 
 @app.route("/patients/discharge/<int:patient_id>", methods=["POST"])
+@login_required_session
 def discharge_patient(patient_id):
-    if "admin" not in session:
-        return redirect(url_for("login"))
-
-    conn = get_db()
-    conn.execute("UPDATE patients SET status = 'Discharged' WHERE id = ?", (patient_id,))
-    conn.commit()
-    conn.close()
-
-    flash("Patient discharged", "success")
+    patient = Patient.query.get(patient_id)
+    if patient:
+        if patient.status == 'Discharged':
+            flash("Patient is already discharged.", "error")
+        else:
+            patient.status = 'Discharged'
+            patient.discharge_date = datetime.now().date()
+            db.session.commit()
+            flash(
+                f"Patient '{patient.full_name}' discharged successfully.", "success")
+    else:
+        flash("Patient not found.", "error")
     return redirect(url_for("patients"))
+
 
 @app.route("/patients/delete/<int:patient_id>", methods=["POST"])
+@login_required_session
 def delete_patient(patient_id):
-    if "admin" not in session:
-        return redirect(url_for("login"))
-
-    conn = get_db()
-    conn.execute("DELETE FROM patients WHERE id = ?", (patient_id,))
-    conn.commit()
-    conn.close()
-
-    flash("Patient record deleted", "success")
+    patient = Patient.query.get(patient_id)
+    if patient:
+        db.session.delete(patient)
+        db.session.commit()
+        flash("Patient record deleted successfully.", "success")
+    else:
+        flash("Patient not found.", "error")
     return redirect(url_for("patients"))
 
-# ─── RUN ─────────────────────────────────────────────────────
+
+# ─── APPOINTMENT ROUTES ────────────────────────────────────────────────
+
+@app.route('/appointments')
+@login_required_session
+def appointments():
+
+    # ── Appointments list ─────────────────────────────────
+    try:
+        result = db.session.execute(db.text("""
+            SELECT
+                a.id,
+                a.appointment_date,
+                a.reason,
+                a.status,
+                a.notes,
+                p.full_name                          AS patient_name,
+                COALESCE(u.full_name, u.username)    AS doctor_name
+            FROM appointments a
+            JOIN patients p ON a.patient_id = p.id
+            JOIN users    u ON a.doctor_id  = u.id
+            ORDER BY a.appointment_date DESC
+        """)).mappings().all()
+        appointments_list = [dict(row) for row in result]
+    except Exception as e:
+        flash(f'Error loading appointments: {str(e)}', 'error')
+        appointments_list = []
+
+    # ── Patient dropdown ──────────────────────────────────
+    try:
+        patients_raw = db.session.execute(db.text("""
+            SELECT id, patient_id, full_name AS name
+            FROM patients
+            ORDER BY full_name
+        """)).mappings().all()
+        patients = [dict(r) for r in patients_raw]
+    except Exception as e:
+        flash(f'Error loading patients: {str(e)}', 'error')
+        patients = []
+
+    # ── Doctor dropdown — full_name from users ────────────
+    try:
+        doctors_raw = db.session.execute(db.text("""
+            SELECT
+                id,
+                COALESCE(full_name, username) AS name
+            FROM users
+            WHERE role = 'doctor'
+            ORDER BY full_name, username
+        """)).mappings().all()
+        doctors = [dict(r) for r in doctors_raw]
+    except Exception as e:
+        flash(f'Error loading doctors: {str(e)}', 'error')
+        doctors = []
+
+    print(f"DEBUG → doctors: {doctors}")
+    print(f"DEBUG → patients: {patients}")
+
+    return render_template('appointments.html',
+                           appointments=appointments_list,
+                           patients=patients,
+                           doctors=doctors)
+
+
+@app.route('/appointments/add', methods=['POST'])
+@login_required_session
+def add_appointment():
+    patient_id = request.form.get('patient_id', '').strip()
+    doctor_id = request.form.get('doctor_id', '').strip()
+    appointment_date = request.form.get('appointment_date', '').strip()
+    appointment_time = request.form.get('appointment_time', '').strip()
+    reason = request.form.get('reason', '').strip()
+    notes = request.form.get('notes', '').strip() or None
+
+    # ── Validate ──────────────────────────────────────────
+    if not all([patient_id, doctor_id, appointment_date, appointment_time]):
+        flash('Patient, Doctor, Date and Time are all required.', 'error')
+        return redirect(url_for('appointments'))
+
+    # ── Combine date + time ───────────────────────────────
+    try:
+        combined_dt = datetime.strptime(
+            f"{appointment_date} {appointment_time}", '%Y-%m-%d %H:%M'
+        )
+    except ValueError:
+        flash('Invalid date or time format.', 'error')
+        return redirect(url_for('appointments'))
+
+    # ── Verify doctor in users table ──────────────────────
+    doctor = db.session.execute(db.text(
+        "SELECT id FROM users WHERE id = :id AND role = 'doctor'"
+    ), {'id': int(doctor_id)}).fetchone()
+
+    if not doctor:
+        flash(
+            f'Doctor ID {doctor_id} not found. Add doctors via Staff page first.', 'error')
+        return redirect(url_for('appointments'))
+
+    # ── Verify patient exists ─────────────────────────────
+    patient = db.session.execute(db.text(
+        "SELECT id FROM patients WHERE id = :id"
+    ), {'id': int(patient_id)}).fetchone()
+
+    if not patient:
+        flash(f'Patient ID {patient_id} not found.', 'error')
+        return redirect(url_for('appointments'))
+
+    # ── Insert ────────────────────────────────────────────
+    try:
+        db.session.execute(db.text("""
+            INSERT INTO appointments
+                (patient_id, doctor_id, appointment_date, reason, status, notes, created_at)
+            VALUES
+                (:patient_id, :doctor_id, :appointment_date, :reason, :status, :notes, :created_at)
+        """), {
+            'patient_id':       int(patient_id),
+            'doctor_id':        int(doctor_id),
+            'appointment_date': combined_dt,
+            'reason':           reason,
+            'status':           'scheduled',
+            'notes':            notes,
+            'created_at':       datetime.now()
+        })
+        db.session.commit()
+        flash('Appointment scheduled successfully!', 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Failed to save: {str(e)}', 'error')
+
+    return redirect(url_for('appointments'))
+
+
+@app.route('/appointments/complete/<int:appt_id>', methods=['POST'])
+@login_required_session
+def complete_appointment(appt_id):
+    try:
+        db.session.execute(db.text(
+            "UPDATE appointments SET status='completed' WHERE id=:id"
+        ), {'id': appt_id})
+        db.session.commit()
+        flash('Appointment marked as completed.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), 'error')
+    return redirect(url_for('appointments'))
+
+
+@app.route('/appointments/cancel/<int:appt_id>', methods=['POST'])
+@login_required_session
+def cancel_appointment(appt_id):
+    try:
+        db.session.execute(db.text(
+            "UPDATE appointments SET status='cancelled' WHERE id=:id"
+        ), {'id': appt_id})
+        db.session.commit()
+        flash('Appointment cancelled.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), 'error')
+    return redirect(url_for('appointments'))
+
+
+@app.route('/appointments/delete/<int:appt_id>', methods=['POST'])
+@login_required_session
+def delete_appointment(appt_id):
+    try:
+        db.session.execute(db.text(
+            "DELETE FROM appointments WHERE id=:id"
+        ), {'id': appt_id})
+        db.session.commit()
+        flash('Appointment deleted.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), 'error')
+    return redirect(url_for('appointments'))
+
+
+@app.route('/debug/appointments')
+def debug_appointments():
+    doctors = db.session.execute(db.text(
+        "SELECT id, username AS name FROM users WHERE role='doctor'"
+    )).mappings().all()
+
+    patients = db.session.execute(db.text(
+        "SELECT id, patient_id, full_name AS name FROM patients"
+    )).mappings().all()
+
+    return {
+        'total_doctors':  len(list(doctors)),
+        'total_patients': len(list(patients)),
+        'doctors':  [dict(d) for d in db.session.execute(db.text(
+            "SELECT id, username AS name FROM users WHERE role='doctor'"
+        )).mappings().all()],
+        'patients': [dict(p) for p in db.session.execute(db.text(
+            "SELECT id, patient_id, full_name AS name FROM patients"
+        )).mappings().all()]
+    }
+
+
+# ─── RUN ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    init_db()
+    with app.app_context():
+        db.create_all()
+
+        # Create default admin if not exists
+        if not User.query.filter_by(username='admin').first():
+            admin = User(
+                username='admin',
+                password_hash=generate_password_hash('admin123'),
+                role='admin'
+            )
+            db.session.add(admin)
+            db.session.commit()
+            print("Default admin created → username: admin  password: admin123")
+
     app.run(debug=True)

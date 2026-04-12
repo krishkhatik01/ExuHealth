@@ -36,9 +36,9 @@
                     <td>{{ p['health_issue'] }}</td>
                     <td>
                         {% if p['doctor_name'] %}
-                            <span style="color:#2a4365">👨‍⚕️ {{ p['doctor_name'] }}</span>
+                        <span style="color:#2a4365">👨‍⚕️ {{ p['doctor_name'] }}</span>
                         {% else %}
-                            <span style="color:#a0aec0">Not assigned</span>
+                        <span style="color:#a0aec0">Not assigned</span>
                         {% endif %}
                     </td>
                     <td>
@@ -49,12 +49,12 @@
                         <div style="display:flex; gap:6px;">
                             {% if p['status'] == 'Active' %}
                             <form method="POST" action="/patients/discharge/{{ p['id'] }}"
-                                  onsubmit="return confirm('Discharge this patient?')">
+                                onsubmit="return confirm('Discharge this patient?')">
                                 <button type="submit" class="btn btn-warning btn-sm">Discharge</button>
                             </form>
                             {% endif %}
                             <form method="POST" action="/patients/delete/{{ p['id'] }}"
-                                  onsubmit="return confirm('Delete this patient record?')">
+                                onsubmit="return confirm('Delete this patient record?')">
                                 <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                             </form>
                         </div>
@@ -72,47 +72,68 @@
     </div>
 </div>
 
-<!-- Add Patient Modal -->
+<!-- ── Add Patient Modal ─────────────────────────────────────────── -->
 <div class="modal-overlay" id="addPatientModal">
     <div class="modal">
         <div class="modal-header">
             <h3>Admit New Patient</h3>
             <button class="modal-close" onclick="closeModal('addPatientModal')">×</button>
         </div>
-        <form method="POST" action="/patients/add">
+
+        <form method="POST" action="/patients/add" id="patientForm" novalidate>
             <div class="modal-body">
+
+                <!-- Inline error banner -->
+                <div id="patientError" style="display:none; background:#fed7d7; color:#742a2a;
+                            border-left:4px solid #e53e3e; padding:10px 14px;
+                            border-radius:8px; margin-bottom:14px; font-size:13px;">
+                </div>
+
                 <div class="form-row cols-2">
                     <div class="form-group">
                         <label>Patient Name *</label>
-                        <input type="text" name="name" required placeholder="Amit Patel">
+                        <input type="text" name="name" id="patientName" required maxlength="100" autocomplete="off">
+                        <span class="field-hint" style="font-size:11px; color:#a0aec0;">
+
+                        </span>
                     </div>
                     <div class="form-group">
                         <label>Age</label>
-                        <input type="number" name="age" placeholder="35" min="0" max="120">
+                        <input type="number" name="age" id="patientAge" min="0" max="120">
                     </div>
                 </div>
+
                 <div class="form-row cols-2">
                     <div class="form-group">
                         <label>Phone</label>
-                        <input type="text" name="phone" placeholder="9876543210">
+                        <input type="text" name="phone" id="patientPhone" maxlength="10" autocomplete="off">
+                        <span class="field-hint" style="font-size:11px; color:#a0aec0;">
+                        </span>
                     </div>
                     <div class="form-group">
                         <label>Assign Doctor</label>
                         <select name="assigned_doctor_id">
                             <option value="">-- Select Doctor --</option>
                             {% for d in doctors %}
-                                <option value="{{ d['id'] }}">{{ d['name'] }}</option>
+                            <option value="{{ d['id'] }}">{{ d['name'] }}</option>
                             {% endfor %}
                         </select>
                     </div>
                 </div>
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>Health Issue / Diagnosis *</label>
-                        <input type="text" name="health_issue" required placeholder="e.g. Fever, Diabetes, Fracture...">
+                        <input type="text" name="health_issue" id="patientIssue" required
+                            placeholder="e.g. Fever, Diabetes, Fracture..." maxlength="200" autocomplete="off">
+                        <span class="field-hint" style="font-size:11px; color:#a0aec0;">
+                            Describe the condition
+                        </span>
                     </div>
                 </div>
-            </div>
+
+            </div><!-- /modal-body -->
+
             <div class="modal-footer">
                 <button type="button" class="btn btn-ghost" onclick="closeModal('addPatientModal')">Cancel</button>
                 <button type="submit" class="btn btn-success">Admit Patient</button>
@@ -120,5 +141,105 @@
         </form>
     </div>
 </div>
+
+<!-- ── Patient Validation Script ────────────────────────────────── -->
+<script>
+    /* ── show inline error ── */
+    function showPatientError(msg) {
+        var box = document.getElementById('patientError');
+        box.textContent = msg;
+        box.style.display = 'block';
+        box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function hidePatientError() {
+        document.getElementById('patientError').style.display = 'none';
+    }
+
+    /* ── live: strip numbers from name as user types ── */
+    document.getElementById('patientName').addEventListener('input', function () {
+        this.value = this.value.replace(/[^A-Za-z\s\.\-]/g, '');
+    });
+
+    /* ── live: strip non-digits from phone, max 10 chars ── */
+    document.getElementById('patientPhone').addEventListener('input', function () {
+        this.value = this.value.replace(/\D/g, '').slice(0, 10);
+    });
+
+    /* ── live: prevent a purely-numeric health issue ── */
+    document.getElementById('patientIssue').addEventListener('blur', function () {
+        var val = this.value.trim();
+        if (val && /^\d+$/.test(val)) {
+            showPatientError('Health issue cannot be just a number — describe the condition.');
+            this.value = '';
+        } else {
+            hidePatientError();
+        }
+    });
+
+    /* ── submit validation ── */
+    document.getElementById('patientForm').addEventListener('submit', function (e) {
+        hidePatientError();
+
+        var name = document.getElementById('patientName').value.trim();
+        var age = document.getElementById('patientAge').value.trim();
+        var phone = document.getElementById('patientPhone').value.trim();
+        var issue = document.getElementById('patientIssue').value.trim();
+
+        var lettersRe = /^[A-Za-z\s\.\-]+$/;
+        var phoneRe = /^\d{10}$/;
+        var onlyDigitsRe = /^\d+$/;
+
+        /* name */
+        if (!name) {
+            e.preventDefault();
+            return showPatientError('Patient name is required.');
+        }
+        if (!lettersRe.test(name)) {
+            e.preventDefault();
+            return showPatientError('Name must contain letters only — no numbers or special characters.');
+        }
+        if (name.length < 2) {
+            e.preventDefault();
+            return showPatientError('Name must be at least 2 characters.');
+        }
+
+        /* age */
+        if (age !== '') {
+            var ageNum = parseInt(age, 10);
+            if (isNaN(ageNum) || ageNum < 0 || ageNum > 120) {
+                e.preventDefault();
+                return showPatientError('Age must be a number between 0 and 120.');
+            }
+        }
+
+        /* phone */
+        if (phone && !phoneRe.test(phone)) {
+            e.preventDefault();
+            return showPatientError('Phone must be exactly 10 digits.');
+        }
+
+        /* health issue */
+        if (!issue) {
+            e.preventDefault();
+            return showPatientError('Health issue / diagnosis is required.');
+        }
+        if (onlyDigitsRe.test(issue)) {
+            e.preventDefault();
+            return showPatientError('Health issue cannot be just a number — please describe the condition.');
+        }
+        if (issue.length < 3) {
+            e.preventDefault();
+            return showPatientError('Please describe the health issue in more detail.');
+        }
+    });
+
+    /* ── reset form and error when modal closes ── */
+    document.querySelector('#addPatientModal .modal-close')
+        .addEventListener('click', function () {
+            document.getElementById('patientForm').reset();
+            hidePatientError();
+        });
+</script>
 
 {% endblock %}

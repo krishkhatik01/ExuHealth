@@ -33,11 +33,19 @@
             <div class="label">Total Patients</div>
         </div>
     </div>
+    <div class="stat-card">
+        <div class="stat-icon">📅</div>
+        <div class="stat-info">
+            <div class="value">{{ today_appts }}</div>
+            <div class="label">Today's Appointments</div>
+        </div>
+    </div>
 </div>
 
 <div class="card">
     <div class="card-body" style="text-align:center; padding: 40px;">
-        <p style="font-size:15px; color:#718096;">Welcome, <strong>{{ session['admin'] }}</strong>. Use the sidebar to manage staff and patients.</p>
+        <p style="font-size:15px; color:#718096;">Welcome, <strong>{{ session['admin'] }}</strong>. Use the sidebar to
+            manage staff and patients.</p>
     </div>
 </div>
 
