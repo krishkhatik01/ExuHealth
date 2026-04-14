@@ -1,0 +1,1199 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>
+    {% if page == 'login' %}Admin Login
+    {% elif page == 'dashboard' %}Dashboard
+    {% elif page == 'staff' %}Staff
+    {% elif page == 'patients' %}Patients
+    {% elif page == 'appointments' %}Appointments
+    {% elif page == 'user_login' %}Patient Login
+    {% elif page == 'user_signup' %}Patient Sign Up
+    {% elif page == 'user_dashboard' %}My Dashboard
+    {% endif %} — ExuHealth HMS
+  </title>
+  <!-- Link to external CSS file -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+
+<body>
+
+  <!-- ==========================================================================
+       ADMIN LOGIN PAGE
+       ========================================================================== -->
+  {% if page == 'login' %}
+  <div class="login-page">
+    <div class="login-card">
+      <!-- Logo Section -->
+      <div class="login-logo">
+        <div class="icon">🏥</div>
+        <h1>ExuHealth HMS</h1>
+        <p>Admin / Staff Portal</p>
+      </div>
+
+      <!-- Flash Messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <div class="alert alert-{{ category }} mb-2">{{ message }}</div>
+      {% endfor %}
+      {% endwith %}
+
+      <!-- Login Form -->
+      <form method="POST">
+        <div class="form-group mb-2">
+          <label>Username</label>
+          <input type="text" name="username" required autofocus />
+        </div>
+        <div class="form-group mb-3">
+          <label>Password</label>
+          <input type="password" name="password" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Login</button>
+      </form>
+
+      <!-- Link to Patient Portal -->
+      <div class="mt-2 pt-2 border-top text-center text-sm text-gray">
+        Are you a patient? <a href="{{ url_for('user_login') }}" class="text-primary font-semibold">Patient Portal →</a>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==========================================================================
+       PATIENT LOGIN PAGE
+       ========================================================================== -->
+  {% elif page == 'user_login' %}
+  <div class="login-page">
+    <div class="login-card">
+      <!-- Logo Section -->
+      <div class="login-logo">
+        <div class="icon">🙋</div>
+        <h1>Patient Portal</h1>
+        <p>Book appointments with our doctors</p>
+      </div>
+
+      <!-- Flash Messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <div class="alert alert-{{ category }} mb-2">{{ message }}</div>
+      {% endfor %}
+      {% endwith %}
+
+      <!-- Login Form -->
+      <form method="POST">
+        <div class="form-group mb-2">
+          <label>Username</label>
+          <input type="text" name="username" required autofocus />
+        </div>
+        <div class="form-group mb-3">
+          <label>Password</label>
+          <input type="password" name="password" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn btn-teal btn-block">Login</button>
+      </form>
+
+      <!-- Links -->
+      <div class="auth-links">
+        Don't have an account? <a href="{{ url_for('user_signup') }}">Sign up
+          here →</a>
+      </div>
+      <div class="mt-1 text-center text-sm text-gray">
+        Staff? <a href="{{ url_for('login') }}" class="text-primary font-semibold">Admin Login →</a>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==========================================================================
+       PATIENT SIGNUP PAGE
+       ========================================================================== -->
+  {% elif page == 'user_signup' %}
+  <div class="login-page">
+    <div class="login-card">
+      <!-- Logo Section -->
+      <div class="login-logo">
+        <div class="icon">✍️</div>
+        <h1>Create Account</h1>
+        <p>Join ExuHealth Patient Portal</p>
+      </div>
+
+      <!-- Flash Messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <div class="alert alert-{{ category }} mb-2">{{ message }}</div>
+      {% endfor %}
+      {% endwith %}
+
+      <!-- Signup Form -->
+      <form method="POST" id="signupForm" novalidate>
+        <div id="signupError" class="error-box"></div>
+
+        <div class="form-group" style="margin-bottom:14px">
+          <label>Full Name *</label>
+          <input type="text" name="full_name" id="signupName" placeholder="Your full name" required />
+        </div>
+
+        <div class="form-group" style="margin-bottom:14px">
+          <label>Username *</label>
+          <input type="text" name="username" id="signupUser" placeholder="Choose a username" required />
+        </div>
+
+        <div class="form-group" style="margin-bottom:14px">
+          <label>Email <span class="label-optional">(optional)</span></label>
+          <input type="email" name="email" placeholder="your@email.com" />
+        </div>
+
+        <div class="form-group" style="margin-bottom:14px">
+          <label>Password * <span class="label-optional">(min 6 chars)</span></label>
+          <input type="password" name="password" id="signupPass" placeholder="••••••••" required />
+        </div>
+
+        <div class="form-group mb-3">
+          <label>Confirm Password *</label>
+          <input type="password" name="confirm_password" id="signupConfirm" placeholder="••••••••" required />
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" style="background:#2c7a7b;">Create Account</button>
+      </form>
+
+      <!-- Link to Login -->
+      <div class="auth-links">
+        Already have an account? <a href="{{ url_for('user_login') }}" class="text-primary font-semibold">Log in
+          →</a>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==========================================================================
+       PATIENT DASHBOARD (User Portal)
+       ========================================================================== -->
+  {% elif page == 'user_dashboard' %}
+  <div style="min-height:100vh; background:#f0f4f8;">
+
+    <!-- User Top Navigation Bar -->
+    <div
+      style="background:#1a3c5e; color:white; padding:0 28px; height:58px; display:flex; align-items:center; justify-content:space-between;">
+      <span style="font-size:17px; font-weight:700;">🏥 ExuHealth — Patient Portal</span>
+      <div style="font-size:13px; display:flex; align-items:center; gap:14px; color:rgba(255,255,255,0.8);">
+        <span>👤 {{ user_name }}</span>
+        <a href="{{ url_for('user_logout') }}">
+          <button class="btn btn-ghost btn-sm">Logout</button>
+        </a>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div style="padding:28px; max-width:1200px; margin:0 auto;">
+
+      <!-- Flash Messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div class="flash-wrap">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endwith %}
+
+      <!-- Doctors Section -->
+      <div
+        style="font-size:16px; font-weight:700; color:#1a3c5e; margin-bottom:16px; padding-bottom:8px; border-bottom:2px solid #e2e8f0;">
+        👨‍⚕️ Our Doctors — Availability Today
+      </div>
+
+      {% if doctors %}
+      <div
+        style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:16px; padding:24px; background:white; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:24px;">
+        {% for d in doctors %}
+        <div
+          style="border:1px solid #e2e8f0; border-radius:12px; padding:20px; background:{% if d.is_free %}#f0fff4{% else %}#fff5f5{% endif %}; border-color:{% if d.is_free %}#68d391{% else %}#fc8181{% endif %};">
+          <!-- Doctor Avatar -->
+          <div
+            style="width:52px; height:52px; border-radius:50%; background:#bee3f8; display:flex; align-items:center; justify-content:center; font-size:22px; margin-bottom:12px;">
+            👨‍⚕️</div>
+
+          <!-- Doctor Info -->
+          <div style="font-size:15px; font-weight:700; color:#1a3c5e; margin-bottom:3px;">Dr. {{ d.name }}</div>
+          <div style="font-size:12px; color:#718096; margin-bottom:8px;">{{ d.specialization }}</div>
+
+          <!-- Availability Badge -->
+          {% if d.is_free %}
+          <span
+            style="display:inline-block; background:#c6f6d5; color:#22543d; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px;">✅
+            Free Today</span>
+          {% else %}
+          <span
+            style="display:inline-block; background:#fed7d7; color:#742a2a; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px;">📅
+            Has Appointments</span>
+          {% endif %}
+
+          <!-- Appointment Count -->
+          <div style="font-size:11px; color:#718096; margin-top:6px;">{{ d.today_appointments }} appointment(s) today
+          </div>
+
+          <!-- Book Button -->
+          <button class="btn btn-primary btn-sm" style="margin-top:12px; width:100%; background:#2c7a7b;"
+            onclick="openBookModal({{ d.id }}, 'Dr. {{ d.name|e }}', '{{ d.specialization|e }}')">
+            Book Appointment
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="icon">👨‍⚕️</div>
+        <p>No doctors available right now.</p>
+      </div>
+      {% endif %}
+
+      <!-- My Appointments Section -->
+      <div
+        style="font-size:16px; font-weight:700; color:#1a3c5e; margin-bottom:16px; margin-top:32px; padding-bottom:8px; border-bottom:2px solid #e2e8f0;">
+        📋 My Appointments
+      </div>
+
+      {% if my_appointments %}
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Doctor</th>
+                <th>Specialization</th>
+                <th>Date & Time</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in my_appointments %}
+              <tr>
+                <td><strong>Dr. {{ a.doctor_name }}</strong></td>
+                <td style="color:#718096; font-size:13px">{{ a.specialization }}</td>
+                <td style="color:#718096; font-size:13px">{{ a.appointment_date }}</td>
+                <td>{{ a.reason }}</td>
+                <td><span class="badge badge-{{ a.status }}">{{ a.status|title }}</span></td>
+                <td>
+                  {% if a.status == 'scheduled' %}
+                  <form method="POST" action="{{ url_for('user_cancel_appointment', appt_id=a.id) }}"
+                    onsubmit="return confirm('Cancel this appointment?')">
+                    <button type="submit" class="btn btn-warning btn-sm">Cancel</button>
+                  </form>
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="icon">📅</div>
+        <p>No appointments yet. Book one above!</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Book Appointment Modal -->
+  <div class="modal-overlay" id="bookModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Book Appointment</h3>
+        <button class="modal-close" onclick="closeModal('bookModal')">×</button>
+      </div>
+      <form method="POST" action="{{ url_for('user_book_appointment') }}" id="bookForm" novalidate>
+        <div class="modal-body">
+          <div id="bookError" class="inline-error"
+            style="display:none; margin-bottom:16px; background:#fed7d7; color:#742a2a; border-left:4px solid #e53e3e; padding:10px 14px; border-radius:8px; font-size:13px;">
+          </div>
+
+          <!-- Hidden doctor ID -->
+          <input type="hidden" name="doctor_id" id="bookDoctorId" />
+
+          <!-- Doctor Info Display -->
+          <div
+            style="background:#ebf8ff; border:1px solid #90cdf4; border-radius:8px; padding:10px 14px; font-size:13px; color:#2a4365; margin-bottom:16px;"
+            id="bookDoctorInfo">
+            Select a doctor to continue.
+          </div>
+
+          <!-- Name and Phone Row -->
+          <div class="form-row cols-3">
+            <div class="form-group">
+              <label>Your Full Name *</label>
+              <input type="text" name="patient_name" id="bookPatientName" placeholder="Enter your full name" required />
+            </div>
+            <div class="form-group">
+              <label>Age *</label>
+              <input type="number" name="patient_age" id="bookPatientAge" placeholder="Age" required min="0"
+                max="120" />
+            </div>
+            <div class="form-group">
+              <label>Phone Number *</label>
+              <input type="text" name="patient_phone" id="bookPatientPhone" placeholder="10 digit phone number" required
+                maxlength="10" />
+            </div>
+          </div>
+
+          <!-- Date and Time Row -->
+          <div class="form-row cols-2">
+            <div class="form-group">
+              <label>Date *</label>
+              <input type="date" name="appointment_date" id="bookDate" required />
+            </div>
+            <div class="form-group">
+              <label>Time *</label>
+              <input type="time" name="appointment_time" id="bookTime" required />
+            </div>
+          </div>
+
+          <!-- Reason Row -->
+          <div class="form-row">
+            <div class="form-group">
+              <label>Reason / Symptoms</label>
+              <input type="text" name="reason" placeholder="e.g. Fever, Checkup, Consultation..." />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeModal('bookModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="background:#2c7a7b;">Confirm Booking</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ==========================================================================
+       ADMIN PAGES (Dashboard, Staff, Patients, Appointments)
+       ========================================================================== -->
+  {% else %}
+  <div class="layout">
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <!-- Brand/Logo -->
+      <div class="sidebar-brand">
+        <h1>ExuHealth</h1>
+        <p>Hospital Management</p>
+      </div>
+
+      <!-- Navigation Menu -->
+      <nav class="sidebar-nav">
+        <div
+          style="padding:8px 20px 4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:rgba(255,255,255,0.3); margin-top:8px;">
+          Overview</div>
+        <a href="{{ url_for('dashboard') }}" class="nav-item {% if page=='dashboard' %}active{% endif %}">
+          <span class="icon">📊</span> Dashboard
+        </a>
+
+        <div
+          style="padding:8px 20px 4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:rgba(255,255,255,0.3); margin-top:8px;">
+          Clinical</div>
+        <a href="{{ url_for('staff') }}" class="nav-item {% if page=='staff' %}active{% endif %}">
+          <span class="icon">👨‍⚕️</span> Staff
+        </a>
+        <a href="{{ url_for('patients') }}" class="nav-item {% if page=='patients' %}active{% endif %}">
+          <span class="icon">🛏️</span> Patients
+        </a>
+        <a href="{{ url_for('appointments') }}" class="nav-item {% if page=='appointments' %}active{% endif %}">
+          <span class="icon">📅</span> Appointments
+        </a>
+      </nav>
+
+      <!-- User Info & Logout -->
+      <div class="sidebar-footer">
+        <span>{{ session['admin'] }}</span>
+        <a href="{{ url_for('logout') }}">
+          <button class="btn btn-ghost btn-sm" style="width:100%;">Logout</button>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="main">
+      <!-- Top Navigation Bar -->
+      <div class="topbar">
+        <span class="page-name">
+          {% if page=='dashboard' %}Dashboard
+          {% elif page=='staff' %}Staff Management
+          {% elif page=='patients' %}Patient Management
+          {% elif page=='appointments' %}Appointment Management
+          {% endif %}
+        </span>
+        <span class="admin-info">{{ session.get('role','') | title }} Panel</span>
+      </div>
+
+      <!-- Page Content -->
+      <div class="content">
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-wrap">
+          {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+
+        <!-- =====================================================================
+             DASHBOARD PAGE
+             ===================================================================== -->
+        {% if page == 'dashboard' %}
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-icon">👨‍⚕️</div>
+            <div class="stat-info">
+              <div class="value">{{ total_doctors }}</div>
+              <div class="label">Doctors</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">👷</div>
+            <div class="stat-info">
+              <div class="value">{{ total_staff }}</div>
+              <div class="label">Total Staff</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🛏️</div>
+            <div class="stat-info">
+              <div class="value">{{ active_patients }}</div>
+              <div class="label">Active Patients</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📋</div>
+            <div class="stat-info">
+              <div class="value">{{ total_patients }}</div>
+              <div class="label">Total Patients</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📅</div>
+            <div class="stat-info">
+              <div class="value">{{ today_appts }}</div>
+              <div class="label">Today's Appointments</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body" style="text-align:center; padding:40px;">
+            <p style="font-size:15px; color:#718096;">Welcome, <strong>{{ session['admin'] }}</strong>. Use the sidebar
+              to manage the hospital.</p>
+          </div>
+        </div>
+
+
+        <!-- =====================================================================
+             STAFF MANAGEMENT PAGE
+             ===================================================================== -->
+        {% elif page == 'staff' %}
+        <div class="card">
+          <div class="card-header">
+            <h2>All Staff Members</h2>
+            <button class="btn btn-primary btn-sm" onclick="openModal('addStaffModal')">+ Add Staff</button>
+          </div>
+          <div class="table-wrap">
+            {% if staff %}
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Specialization</th>
+                  <th>Phone</th>
+                  <th>Email</th>
+                  <th>Joining Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in staff %}
+                <tr>
+                  <td style="color:#a0aec0">{{ s['id'] }}</td>
+                  <td><strong>{{ s['name'] }}</strong></td>
+                  <td><span class="badge badge-{{ s['role'].lower() }}">{{ s['role'] }}</span></td>
+                  <td>{{ s['specialization'] or '—' }}</td>
+                  <td>{{ s['phone'] or '—' }}</td>
+                  <td>{{ s['email'] or '—' }}</td>
+                  <td style="color:#718096; font-size:13px">{{ s['joining_date'] }}</td>
+                  <td>
+                    <form method="POST" action="/staff/delete/{{ s['id'] }}"
+                      onsubmit="return confirm('Remove this staff member?')">
+                      <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+              <div class="icon">👨‍⚕️</div>
+              <p>No staff members yet.</p>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Add Staff Modal -->
+        <div class="modal-overlay" id="addStaffModal">
+          <div class="modal">
+            <div class="modal-header">
+              <h3>Add Staff Member</h3>
+              <button class="modal-close" onclick="closeModal('addStaffModal')">×</button>
+            </div>
+            <form method="POST" action="/staff/add" id="staffForm" novalidate>
+              <div class="modal-body">
+                <div id="staffError" class="inline-error"
+                  style="display:none; margin-bottom:14px; background:#fed7d7; color:#742a2a; border-left:4px solid #e53e3e; padding:10px 14px; border-radius:8px; font-size:13px;">
+                </div>
+
+                <div class="form-row cols-2">
+                  <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" name="name" id="staffName" required maxlength="100" autocomplete="off" />
+                  </div>
+                  <div class="form-group">
+                    <label>Role *</label>
+                    <select name="role" id="roleSelect" onchange="toggleSpec(this.value)" required>
+                      <option value="">Select role</option>
+                      <option value="Doctor">Doctor</option>
+                      <option value="Staff">Staff</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-row" id="specRow" style="display:none">
+                  <div class="form-group">
+                    <label>Specialization *</label>
+                    <input type="text" name="specialization" id="staffSpec" placeholder="Cardiology, Neurology..."
+                      maxlength="100" autocomplete="off" />
+                  </div>
+                </div>
+
+                <div class="form-row cols-2">
+                  <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" name="phone" id="staffPhone" maxlength="10" autocomplete="off" />
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" id="staffEmail" autocomplete="off" />
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('addStaffModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Staff</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+
+        <!-- =====================================================================
+             PATIENT MANAGEMENT PAGE
+             ===================================================================== -->
+        {% elif page == 'patients' %}
+        <div class="card">
+          <div class="card-header">
+            <h2>All Patients</h2>
+            <button class="btn btn-primary btn-sm" onclick="openModal('addPatientModal')">+ Admit Patient</button>
+          </div>
+          <div class="table-wrap">
+            {% if patients %}
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Age</th>
+                  <th>Phone</th>
+                  <th>Health Issue</th>
+                  <th>Doctor</th>
+                  <th>Status</th>
+                  <th>Admit Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in patients %}
+                <tr>
+                  <td style="color:#a0aec0">{{ p['id'] }}</td>
+                  <td>
+                    <strong>{{ p['name'] }}</strong><br>
+                    <span style="font-size:11px; color:#a0aec0">{{ p['patient_id'] }}</span>
+                  </td>
+                  <td>{{ p['age'] or '—' }}</td>
+                  <td>{{ p['phone'] or '—' }}</td>
+                  <td>{{ p['health_issue'] }}</td>
+                  <td>
+                    {% if p['doctor_name'] %}
+                    <span style="color:#2a4365">👨‍⚕️ {{ p['doctor_name'] }}</span>
+                    {% else %}
+                    <span style="color:#a0aec0">Not assigned</span>
+                    {% endif %}
+                  </td>
+                  <td><span class="badge badge-{{ p['status'].lower() }}">{{ p['status'] }}</span></td>
+                  <td style="color:#718096; font-size:13px">{{ p['admit_date'] }}</td>
+                  <td>
+                    <div style="display:flex; gap:6px">
+                      {% if p['status'] == 'Active' %}
+                      <form method="POST" action="/patients/discharge/{{ p['id'] }}"
+                        onsubmit="return confirm('Discharge this patient?')">
+                        <button type="submit" class="btn btn-warning btn-sm">Discharge</button>
+                      </form>
+                      {% endif %}
+                      <form method="POST" action="/patients/delete/{{ p['id'] }}"
+                        onsubmit="return confirm('Delete this patient record?')">
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+              <div class="icon">🛏️</div>
+              <p>No patients admitted yet.</p>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Add Patient Modal -->
+        <div class="modal-overlay" id="addPatientModal">
+          <div class="modal">
+            <div class="modal-header">
+              <h3>Admit New Patient</h3>
+              <button class="modal-close" onclick="closeModal('addPatientModal')">×</button>
+            </div>
+            <form method="POST" action="/patients/add" id="patientForm" novalidate>
+              <div class="modal-body">
+                <div id="patientError" class="inline-error"
+                  style="display:none; margin-bottom:14px; background:#fed7d7; color:#742a2a; border-left:4px solid #e53e3e; padding:10px 14px; border-radius:8px; font-size:13px;">
+                </div>
+
+                <div class="form-row cols-2">
+                  <div class="form-group">
+                    <label>Patient Name *</label>
+                    <input type="text" name="name" id="patientName" required maxlength="100" autocomplete="off" />
+                  </div>
+                  <div class="form-group">
+                    <label>Age</label>
+                    <input type="number" name="age" min="0" max="120" />
+                  </div>
+                </div>
+
+                <div class="form-row cols-2">
+                  <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" name="phone" id="patientPhone" maxlength="10" autocomplete="off" />
+                  </div>
+                  <div class="form-group">
+                    <label>Assign Doctor</label>
+                    <select name="assigned_doctor_id">
+                      <option value="">-- Select Doctor --</option>
+                      {% for d in doctors %}<option value="{{ d['id'] }}">{{ d['name'] }}</option>{% endfor %}
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Health Issue / Diagnosis *</label>
+                    <input type="text" name="health_issue" id="patientIssue" required
+                      placeholder="e.g. Fever, Diabetes, Fracture..." maxlength="200" autocomplete="off" />
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('addPatientModal')">Cancel</button>
+                <button type="submit" class="btn btn-success">Admit Patient</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+
+        <!-- =====================================================================
+             APPOINTMENT MANAGEMENT PAGE
+             ===================================================================== -->
+        {% elif page == 'appointments' %}
+        <div class="card">
+          <div class="card-header">
+            <h2>All Appointments</h2>
+            <button class="btn btn-primary btn-sm" onclick="openModal('addAppointmentModal')">+ New Appointment</button>
+          </div>
+          <div class="table-wrap">
+            {% if appointments %}
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Patient</th>
+                  <th>Doctor</th>
+                  <th>Date & Time</th>
+                  <th>Reason</th>
+                  <th>Status</th>
+                  <th>Notes</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for appt in appointments %}
+                <tr>
+                  <td style="color:#a0aec0">{{ appt.id }}</td>
+                  <td><strong>{{ appt.patient_name }}</strong></td>
+                  <td>{% if not appt.doctor_name.startswith('Dr.') %}Dr. {% endif %}{{ appt.doctor_name or '—' }}</td>
+                  <td style="color:#718096; font-size:13px">{{ appt.appointment_date }}</td>
+                  <td>{{ appt.reason or '—' }}</td>
+                  <td><span class="badge badge-{{ appt.status }}">{{ appt.status|title }}</span></td>
+                  <td>{{ appt.notes or '—' }}</td>
+                  <td>
+                    <div style="display:flex; gap:6px">
+                      {% if appt.status == 'scheduled' %}
+                      <form method="POST" action="/appointments/complete/{{ appt.id }}"
+                        onsubmit="return confirm('Mark as completed?')">
+                        <button type="submit" class="btn btn-success btn-sm">Complete</button>
+                      </form>
+                      <form method="POST" action="/appointments/cancel/{{ appt.id }}"
+                        onsubmit="return confirm('Cancel?')">
+                        <button type="submit" class="btn btn-warning btn-sm">Cancel</button>
+                      </form>
+                      {% endif %}
+                      <form method="POST" action="/appointments/delete/{{ appt.id }}"
+                        onsubmit="return confirm('Delete?')">
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+              <div class="icon">📅</div>
+              <p>No appointments yet.</p>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Add Appointment Modal -->
+        <div class="modal-overlay" id="addAppointmentModal">
+          <div class="modal">
+            <div class="modal-header">
+              <h3>Schedule New Appointment</h3>
+              <button class="modal-close" onclick="closeModal('addAppointmentModal')">×</button>
+            </div>
+            <form method="POST" action="/appointments/add" id="appointmentForm" novalidate>
+              <div class="modal-body">
+                <div id="doctorAutoFillNotice"
+                  style="display:none; background:#ebf8ff; border:1px solid #90cdf4; border-radius:8px; padding:10px 14px; font-size:13px; color:#2a4365; margin-bottom:12px;">
+                  ✅ Doctor auto-filled from patient's assigned doctor.</div>
+                <div id="noDoctorNotice"
+                  style="display:none; background:#fefcbf; border:1px solid #f6e05e; border-radius:8px; padding:10px 14px; font-size:13px; color:#744210; margin-bottom:12px;">
+                  ⚠️ This patient has no assigned doctor. Please select one.</div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Patient *</label>
+                    <select name="patient_id" id="apptPatient" required onchange="autoFillDoctor(this.value)">
+                      <option value="">-- Select Patient --</option>
+                      {% for p in patients %}
+                      <option value="{{ p.id }}" data-doctor-id="{{ p.assigned_doctor_id or '' }}"
+                        data-doctor-name="{{ p.assigned_doctor_name or '' }}">
+                        {{ p.name }} ({{ p.patient_id }})
+                      </option>
+                      {% endfor %}
+                    </select>
+                    {% if patients|length == 0 %}
+                    <small style="color:#e53e3e">No active patients. Admit patients first.</small>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Doctor *</label>
+                    <select name="doctor_id" id="apptDoctor" required>
+                      <option value="">-- Select Doctor --</option>
+                      {% for d in doctors %}
+                      <option value="{{ d.id }}">{% if not d.name.startswith('Dr.') %}Dr. {% endif %}{{ d.name }}
+                      </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-row cols-2">
+                  <div class="form-group">
+                    <label>Date *</label>
+                    <input type="date" name="appointment_date" id="apptDate" required />
+                  </div>
+                  <div class="form-group">
+                    <label>Time *</label>
+                    <input type="time" name="appointment_time" required />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Reason</label>
+                    <input type="text" name="reason" placeholder="e.g. Regular Checkup, Consultation..." />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Notes</label>
+                    <textarea name="notes" rows="2" placeholder="Additional notes..."></textarea>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('addAppointmentModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Schedule Appointment</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        {% endif %}
+        <!-- End of admin pages -->
+
+      </div>
+      <!-- End of content -->
+    </div>
+    <!-- End of main -->
+  </div>
+  <!-- End of layout -->
+  {% endif %}
+  <!-- End of page type check -->
+
+
+  <!-- ==========================================================================
+       JAVASCRIPT
+       ========================================================================== -->
+  <script>
+    /* -------------------------------------------------------------------------
+       Modal Functions
+       ------------------------------------------------------------------------- */
+
+    // Open a modal by ID
+    function openModal(id) {
+      document.getElementById(id).classList.add('active');
+    }
+
+    // Close a modal by ID
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    // Open booking modal with doctor info
+    function openBookModal(doctorId, doctorName, spec) {
+      document.getElementById('bookDoctorId').value = doctorId;
+      document.getElementById('bookDoctorInfo').textContent = '👨‍⚕️ Booking with ' + doctorName + ' — ' + spec;
+      openModal('bookModal');
+    }
+
+    /* -------------------------------------------------------------------------
+       Error Display Helpers
+       ------------------------------------------------------------------------- */
+
+    // Show error message
+    function showErr(id, msg) {
+      var el = document.getElementById(id);
+      el.textContent = msg;
+      el.style.display = 'block';
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Hide error message
+    function hideErr(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    }
+
+    /* -------------------------------------------------------------------------
+       Specialization Toggle (for Staff form)
+       ------------------------------------------------------------------------- */
+    function toggleSpec(role) {
+      var row = document.getElementById('specRow');
+      var spec = document.getElementById('staffSpec');
+      if (role === 'Doctor') {
+        row.style.display = 'grid';
+        spec.required = true;
+      } else {
+        row.style.display = 'none';
+        spec.required = false;
+        spec.value = '';
+      }
+    }
+
+    /* -------------------------------------------------------------------------
+       Auto-fill Doctor from Patient Selection
+       ------------------------------------------------------------------------- */
+    function autoFillDoctor(patientId) {
+      var autoNotice = document.getElementById('doctorAutoFillNotice');
+      var noDocNotice = document.getElementById('noDoctorNotice');
+      autoNotice.style.display = 'none';
+      noDocNotice.style.display = 'none';
+
+      if (!patientId) return;
+
+      var opt = document.querySelector('#apptPatient option[value="' + patientId + '"]');
+      if (!opt) return;
+
+      var doctorId = opt.getAttribute('data-doctor-id');
+      var docSel = document.getElementById('apptDoctor');
+
+      if (doctorId) {
+        docSel.value = doctorId;
+        autoNotice.style.display = 'block';
+      } else {
+        docSel.value = '';
+        noDocNotice.style.display = 'block';
+      }
+    }
+
+    /* -------------------------------------------------------------------------
+       Initialize on Page Load
+       ------------------------------------------------------------------------- */
+    document.addEventListener('DOMContentLoaded', function () {
+
+      // Close modal when clicking on overlay background
+      document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
+        overlay.addEventListener('click', function (e) {
+          if (e.target === this) closeModal(this.id);
+        });
+      });
+
+      // Set minimum date for date inputs (today)
+      var today = new Date().toISOString().split('T')[0];
+      ['apptDate', 'bookDate'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.min = today;
+      });
+
+      /* ---------------------------------------------------------------------
+         Staff Form Validation
+         -------------------------------------------------------------------- */
+      var staffForm = document.getElementById('staffForm');
+      if (staffForm) {
+        var sName = document.getElementById('staffName');
+        var sSpec = document.getElementById('staffSpec');
+        var sPhone = document.getElementById('staffPhone');
+
+        // Input filters
+        sName.addEventListener('input', function () {
+          this.value = this.value.replace(/[^A-Za-z\s\.\-]/g, '');
+        });
+        sSpec.addEventListener('input', function () {
+          this.value = this.value.replace(/[^A-Za-z\s\.\-]/g, '');
+        });
+        sPhone.addEventListener('input', function () {
+          this.value = this.value.replace(/\D/g, '').slice(0, 10);
+        });
+
+        // Form submission validation
+        staffForm.addEventListener('submit', function (e) {
+          hideErr('staffError');
+          var n = sName.value.trim();
+          var r = document.getElementById('roleSelect').value;
+          var sp = sSpec.value.trim();
+          var ph = sPhone.value.trim();
+          var em = document.getElementById('staffEmail').value.trim();
+
+          var letRe = /^[A-Za-z\s\.\-]+$/;
+          var phoneRe = /^\d{10}$/;
+          var emailRe = /^[\w\.\-]+@[\w\.\-]+\.\w{2,}$/;
+
+          if (!n || !letRe.test(n) || n.length < 2) {
+            e.preventDefault();
+            return showErr('staffError', 'Valid name required.');
+          }
+          if (!r) {
+            e.preventDefault();
+            return showErr('staffError', 'Please select a role.');
+          }
+          if (r === 'Doctor' && (!sp || !letRe.test(sp))) {
+            e.preventDefault();
+            return showErr('staffError', 'Valid specialization required for Doctors.');
+          }
+          if (ph && !phoneRe.test(ph)) {
+            e.preventDefault();
+            return showErr('staffError', 'Phone must be exactly 10 digits.');
+          }
+          if (em && !emailRe.test(em)) {
+            e.preventDefault();
+            return showErr('staffError', 'Invalid email format.');
+          }
+        });
+      }
+
+      /* ---------------------------------------------------------------------
+         Patient Form Validation
+         -------------------------------------------------------------------- */
+      var patientForm = document.getElementById('patientForm');
+      if (patientForm) {
+        var pName = document.getElementById('patientName');
+        var pPhone = document.getElementById('patientPhone');
+        var pIssue = document.getElementById('patientIssue');
+
+        // Input filters
+        pName.addEventListener('input', function () {
+          this.value = this.value.replace(/[^A-Za-z\s\.\-]/g, '');
+        });
+        pPhone.addEventListener('input', function () {
+          this.value = this.value.replace(/\D/g, '').slice(0, 10);
+        });
+
+        // Form submission validation
+        patientForm.addEventListener('submit', function (e) {
+          hideErr('patientError');
+          var n = pName.value.trim();
+          var ph = pPhone.value.trim();
+          var iss = pIssue.value.trim();
+
+          var letRe = /^[A-Za-z\s\.\-]+$/;
+          var phoneRe = /^\d{10}$/;
+          var digRe = /^\d+$/;
+
+          if (!n || !letRe.test(n) || n.length < 2) {
+            e.preventDefault();
+            return showErr('patientError', 'Valid patient name required.');
+          }
+          if (ph && !phoneRe.test(ph)) {
+            e.preventDefault();
+            return showErr('patientError', 'Phone must be exactly 10 digits.');
+          }
+          if (!iss || digRe.test(iss) || iss.length < 3) {
+            e.preventDefault();
+            return showErr('patientError', 'Valid health issue required (min 3 chars).');
+          }
+        });
+      }
+
+      /* ---------------------------------------------------------------------
+         Appointment Form Validation
+         -------------------------------------------------------------------- */
+      var apptForm = document.getElementById('appointmentForm');
+      if (apptForm) {
+        apptForm.addEventListener('submit', function (e) {
+          var p = document.getElementById('apptPatient').value;
+          var d = document.getElementById('apptDoctor').value;
+          var dt = document.getElementById('apptDate').value;
+          if (!p || !d || !dt) {
+            e.preventDefault();
+            alert('Please fill in Patient, Doctor, Date and Time.');
+          }
+        });
+      }
+
+      /* ---------------------------------------------------------------------
+         Booking Form Validation (User Portal)
+         -------------------------------------------------------------------- */
+      var bookForm = document.getElementById('bookForm');
+      if (bookForm) {
+        var bName = document.getElementById('bookPatientName');
+        var bAge = document.getElementById('bookPatientAge');
+        var bPhone = document.getElementById('bookPatientPhone');
+
+        // Input filters
+        bName.addEventListener('input', function () {
+          this.value = this.value.replace(/[^A-Za-z\s\.\-]/g, '');
+        });
+        bPhone.addEventListener('input', function () {
+          this.value = this.value.replace(/\D/g, '').slice(0, 10);
+        });
+
+        // Form submission validation
+        bookForm.addEventListener('submit', function (e) {
+          hideErr('bookError');
+          var n = bName.value.trim();
+          var a = bAge.value.trim();
+          var p = bPhone.value.trim();
+          var d = document.getElementById('bookDate').value;
+          var t = document.getElementById('bookTime').value;
+
+          var letRe = /^[A-Za-z\s\.\-]+$/;
+          var phoneRe = /^\d{10}$/;
+
+          if (!n || !letRe.test(n) || n.length < 2) {
+            e.preventDefault();
+            return showErr('bookError', 'Enter your full name (letters only).');
+          }
+          if (!a || a < 0 || a > 120) {
+            e.preventDefault();
+            return showErr('bookError', 'Please enter a valid age (0-120).');
+          }
+          if (!p || !phoneRe.test(p)) {
+            e.preventDefault();
+            return showErr('bookError', 'Phone must be exactly 10 digits.');
+          }
+          if (!d) {
+            e.preventDefault();
+            return showErr('bookError', 'Please select a date.');
+          }
+          if (!t) {
+            e.preventDefault();
+            return showErr('bookError', 'Please select a time.');
+          }
+        });
+      }
+
+      /* ---------------------------------------------------------------------
+         User Signup Validation
+         -------------------------------------------------------------------- */
+      var signupForm = document.getElementById('signupForm');
+      if (signupForm) {
+        var spName = document.getElementById('signupName');
+        var spUser = document.getElementById('signupUser');
+        var spPass = document.getElementById('signupPass');
+        var spConfirm = document.getElementById('signupConfirm');
+
+        signupForm.addEventListener('submit', function (e) {
+          hideErr('signupError');
+          if (!spName.value.trim()) {
+            e.preventDefault();
+            return showErr('signupError', 'Full name is required.');
+          }
+          if (!spUser.value.trim()) {
+            e.preventDefault();
+            return showErr('signupError', 'Username is required.');
+          }
+          if (spPass.value.length < 6) {
+            e.preventDefault();
+            return showErr('signupError', 'Password must be at least 6 characters.');
+          }
+          if (spPass.value !== spConfirm.value) {
+            e.preventDefault();
+            return showErr('signupError', 'Passwords do not match.');
+          }
+        });
+      }
+
+    });
+  </script>
+
+</body>
+
+</html>
